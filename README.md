@@ -1,10 +1,12 @@
-# PL_MPEG - MPEG1 Video decoder, MP2 Audio decoder, MPEG-PS demuxer
+# Optimized PL_MPEG - MPEG1 Video decoder, MP2 Audio decoder, MPEG-PS demuxer
 
 Single-file MIT licensed library for C/C++
 
 See [pl_mpeg.h](https://github.com/phoboslab/pl_mpeg/blob/master/pl_mpeg.h) for
 the documentation.
 
+## Optimized?
+pl_mpeg is a good MPEG-1 video player project, but not optimized. The aim of this fork is to optimize the code specifically to allow it to run well on constrained devices (e.g. Microcontrollers). With this version it will be possible to play MPEG-1 video at full speed on the ESP32 and Cortex-M7 devices purely in software.
 
 ## Why?
 
