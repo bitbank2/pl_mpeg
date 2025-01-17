@@ -2452,6 +2452,85 @@ static const plm_vlc_t PLM_VIDEO_MOTION[] = {
 	{       0,   11}, {       0,  -11},  //  33: 0000 0100 01x
 };
 
+//
+// Codes to produce the fast lookup table for DCT coefficients
+//
+// The maximum length of any VLC is 16 bits and the minimum is 2.
+// The "split point" is 6/10 bits. Codes which start with 6 zeros
+// are long codes, otherwise they are short. This requires 2
+// 10-bit fast lookup tables to decode all of the codes with a
+// single read. Each of these lookup tables will have the run,
+// level and actual code length encoded as a 16-bit value (6+6+4 bits)
+// This then requires (1024+1024)*2 = 4096 bytes
+//
+#define MPEG1_VLC_ELEMENTS 113
+// code pattern followed by bit length
+const uint8_t mpeg1_vlc_table[MPEG1_VLC_ELEMENTS][2] = {
+ { 0x3, 2 }, { 0x4, 4 }, { 0x5, 5 }, { 0x6, 7 },
+ { 0x26, 8 }, { 0x21, 8 }, { 0xa, 10 }, { 0x1d, 12 },
+ { 0x18, 12 }, { 0x13, 12 }, { 0x10, 12 }, { 0x1a, 13 },
+ { 0x19, 13 }, { 0x18, 13 }, { 0x17, 13 }, { 0x1f, 14 },
+ { 0x1e, 14 }, { 0x1d, 14 }, { 0x1c, 14 }, { 0x1b, 14 },
+ { 0x1a, 14 }, { 0x19, 14 }, { 0x18, 14 }, { 0x17, 14 },
+ { 0x16, 14 }, { 0x15, 14 }, { 0x14, 14 }, { 0x13, 14 },
+ { 0x12, 14 }, { 0x11, 14 }, { 0x10, 14 }, { 0x18, 15 },
+ { 0x17, 15 }, { 0x16, 15 }, { 0x15, 15 }, { 0x14, 15 },
+ { 0x13, 15 }, { 0x12, 15 }, { 0x11, 15 }, { 0x10, 15 },
+ { 0x3, 3 }, { 0x6, 6 }, { 0x25, 8 }, { 0xc, 10 },
+ { 0x1b, 12 }, { 0x16, 13 }, { 0x15, 13 }, { 0x1f, 15 },
+ { 0x1e, 15 }, { 0x1d, 15 }, { 0x1c, 15 }, { 0x1b, 15 },
+ { 0x1a, 15 }, { 0x19, 15 }, { 0x13, 16 }, { 0x12, 16 },
+ { 0x11, 16 }, { 0x10, 16 }, { 0x5, 4 }, { 0x4, 7 },
+ { 0xb, 10 }, { 0x14, 12 }, { 0x14, 13 }, { 0x7, 5 },
+ { 0x24, 8 }, { 0x1c, 12 }, { 0x13, 13 }, { 0x6, 5 },
+ { 0xf, 10 }, { 0x12, 12 }, { 0x7, 6 }, { 0x9, 10 },
+ { 0x12, 13 }, { 0x5, 6 }, { 0x1e, 12 }, { 0x14, 16 },
+ { 0x4, 6 }, { 0x15, 12 }, { 0x7, 7 }, { 0x11, 12 },
+ { 0x5, 7 }, { 0x11, 13 }, { 0x27, 8 }, { 0x10, 13 },
+ { 0x23, 8 }, { 0x1a, 16 }, { 0x22, 8 }, { 0x19, 16 },
+ { 0x20, 8 }, { 0x18, 16 }, { 0xe, 10 }, { 0x17, 16 },
+ { 0xd, 10 }, { 0x16, 16 }, { 0x8, 10 }, { 0x15, 16 },
+ { 0x1f, 12 }, { 0x1a, 12 }, { 0x19, 12 }, { 0x17, 12 },
+ { 0x16, 12 }, { 0x1f, 13 }, { 0x1e, 13 }, { 0x1d, 13 },
+ { 0x1c, 13 }, { 0x1b, 13 }, { 0x1f, 16 }, { 0x1e, 16 },
+ { 0x1d, 16 }, { 0x1c, 16 }, { 0x1b, 16 },
+ { 0x1, 6 }, /* escape */
+ { 0x2, 2 }, /* EOB */
+ };
+const uint8_t mpeg1_level[MPEG1_VLC_ELEMENTS] = {
+  1,  2,  3,  4,  5,  6,  7,  8,
+  9, 10, 11, 12, 13, 14, 15, 16,
+ 17, 18, 19, 20, 21, 22, 23, 24,
+ 25, 26, 27, 28, 29, 30, 31, 32,
+ 33, 34, 35, 36, 37, 38, 39, 40,
+  1,  2,  3,  4,  5,  6,  7,  8,
+  9, 10, 11, 12, 13, 14, 15, 16,
+ 17, 18,  1,  2,  3,  4,  5,  1,
+  2,  3,  4,  1,  2,  3,  1,  2,
+  3,  1,  2,  3,  1,  2,  1,  2,
+  1,  2,  1,  2,  1,  2,  1,  2,
+  1,  2,  1,  2,  1,  2,  1,  2,
+  1,  1,  1,  1,  1,  1,  1,  1,
+  1,  1,  1,  1,  1,  1,  1, 0xff /* escape */, 0x00 /* EOB */
+};
+
+const uint8_t mpeg1_run[MPEG1_VLC_ELEMENTS] = {
+  0,  0,  0,  0,  0,  0,  0,  0,
+  0,  0,  0,  0,  0,  0,  0,  0,
+  0,  0,  0,  0,  0,  0,  0,  0,
+  0,  0,  0,  0,  0,  0,  0,  0,
+  0,  0,  0,  0,  0,  0,  0,  0,
+  1,  1,  1,  1,  1,  1,  1,  1,
+  1,  1,  1,  1,  1,  1,  1,  1,
+  1,  1,  2,  2,  2,  2,  2,  3,
+  3,  3,  3,  4,  4,  4,  5,  5,
+  5,  6,  6,  6,  7,  7,  8,  8,
+  9,  9, 10, 10, 11, 11, 12, 12,
+ 13, 13, 14, 14, 15, 15, 16, 16,
+ 17, 18, 19, 20, 21, 22, 23, 24,
+ 25, 26, 27, 28, 29, 30, 31, 0xff /* escape */, 0x00 /* EOB */
+};
+
 static const plm_vlc_t PLM_VIDEO_DCT_SIZE_LUMINANCE[] = {
 	{  1 << 1,    0}, {  2 << 1,    0},  //   0: x
 	{       0,    1}, {       0,    2},  //   1: 0x
@@ -2657,6 +2736,7 @@ struct plm_video_t {
 	plm_frame_t frame_backward;
 
 	uint8_t *frames_data;
+    uint16_t *fast_vlc;
 
 	int block_data[64];
 	uint8_t intra_quant_matrix[64];
@@ -2689,6 +2769,49 @@ void plm_video_interpolate_macroblock(plm_video_t *self, plm_frame_t *s, int mot
 void plm_video_process_macroblock(plm_video_t *self, uint8_t *s, uint8_t *d, int mh, int mb, int bs, int interp);
 void plm_video_decode_block(plm_video_t *self, int block);
 void plm_video_idct(int *block);
+void plm_make_fast_vlc(plm_video_t *self);
+
+//
+// Create a fast lookup table for the VLC coefficients
+// Code lengths are 2-16 bits with a split point at 6/10 (first 6 bits == 0)
+// Create two 10-bit tables (short/long) which contain the run, level and bit length
+//                                                  15              0
+// 8 bits of run, 8 bits of level together (16-bits), another table of 8-bit lengths
+//
+void plm_make_fast_vlc(plm_video_t *self)
+{
+    uint16_t *pTables, u16RL, u16Code, u16Mask;
+    uint8_t *pLens;
+    int i, j, len, count, start;
+    
+    self->fast_vlc = pTables = (uint16_t *)malloc(6144);
+    pLens = (uint8_t *)&pTables[2048];
+    for (i=0; i<MPEG1_VLC_ELEMENTS; i++) { // for each unique VLC code
+        u16Code = mpeg1_vlc_table[i][0]; // bit pattern
+        len = mpeg1_vlc_table[i][1]; // bit length;
+        u16RL = (mpeg1_run[i] << 8); // top 8 bits = run
+        u16RL |= mpeg1_level[i]; // bottom bits = level
+        // Is this code long or short?
+        u16Mask = (len > 6) ? (0x3f << (len-6)) : 0x3f;
+        if (u16Code & u16Mask) { // short code
+            // Repeat all permutations of the code + trailing bits for our fast lookup table
+            count = 1 << (10 - len);
+            start = u16Code << (10-len);
+            for (j=0; j<count; j++) {
+                pTables[start + j] = u16RL;
+                pLens[start + j] = len;
+            }
+        } else { // long code
+            // Repeat all permutations of the code + trailing bits for our fast lookup table
+            count = 1 << (16 - len);
+            start = u16Code << (16-len);
+            for (j=0; j<count; j++) {
+                pTables[1024 + start + j] = u16RL;
+                pLens[1024 + start + j] = len;
+            }
+        }
+    }
+} /* plm_make_fast_vlc() */
 
 plm_video_t * plm_video_create_with_buffer(plm_buffer_t *buffer, int destroy_when_done) {
 	plm_video_t *self = (plm_video_t *)PLM_MALLOC(sizeof(plm_video_t));
@@ -2713,7 +2836,7 @@ void plm_video_destroy(plm_video_t *self) {
 	if (self->has_sequence_header) {
 		PLM_FREE(self->frames_data);
 	}
-
+    PLM_FREE(self->fast_vlc);
 	PLM_FREE(self);
 }
 
@@ -2927,6 +3050,8 @@ int plm_video_decode_sequence_header(plm_video_t *self) {
 	plm_video_init_frame(self, &self->frame_current, self->frames_data + frame_data_size * 0);
 	plm_video_init_frame(self, &self->frame_forward, self->frames_data + frame_data_size * 1);
 	plm_video_init_frame(self, &self->frame_backward, self->frames_data + frame_data_size * 2);
+    // init the fast vlc lookup table
+    plm_make_fast_vlc(self);
 
 	self->has_sequence_header = TRUE;
 	return TRUE;
@@ -3244,6 +3369,44 @@ void plm_video_interpolate_macroblock(plm_video_t *self, plm_frame_t *s, int mot
 	plm_video_process_macroblock(self, s->cb.data, d->cb.data, motion_h / 2, motion_v / 2, 8, TRUE);
 }
 
+//
+// This method gets called a lot, so it needs to be as efficient as possible
+// The loop unrolling allows good compilers to turn them into efficient 64 and 128-bit loads
+// The pointer ugliness minimizes the amount of adds and address calculations per loop
+//
+#define PLM_BLOCK_COPY(DEST, DEST_INDEX, DEST_WIDTH, SOURCE_INDEX, SOURCE_WIDTH, BLOCK_SIZE, OP) \
+    do  { \
+       if (BLOCK_SIZE == 8) {     \
+       uint8_t *pS = &s[si]; \
+       uint8_t *pD = &d[di]; \
+         for (int y = 0; y < 8; y++)  {   \
+            uint32_t d0, d1; \
+            d0 = *(uint32_t *)pS; \
+            d1 = *(uint32_t *)&pS[4]; /* unroll loop */                                              \
+            *(uint32_t *)pD = d0; \
+            *(uint32_t *)&pD[4] = d1;                                      \
+            pS += SOURCE_WIDTH;     \
+            pD += DEST_WIDTH;         \
+        } \
+       } else { \
+            uint8_t *pS = &s[si]; \
+            uint8_t *pD = &d[di]; \
+         for (int y = 0; y < 16; y++) { \
+             uint32_t d0, d1, d2, d3; \
+             d0 = *(uint32_t *)pS; \
+             d1 = *(uint32_t *)&pS[4]; /* unroll loop */                                              \
+             d2 = *(uint32_t *)&pS[8]; /* Arm64 compiler converts this into a 128-bit load */ \
+             d3 = *(uint32_t *)&pS[12]; \
+             *(uint32_t *)pD = d0; \
+             *(uint32_t *)&pD[4] = d1;         \
+             *(uint32_t *)&pD[8] = d2; \
+             *(uint32_t *)&pD[12] = d3; \
+             pS += SOURCE_WIDTH; \
+             pD += DEST_WIDTH; \
+        } \
+       }  \
+} while (FALSE)
+
 #define PLM_BLOCK_SET(DEST, DEST_INDEX, DEST_WIDTH, SOURCE_INDEX, SOURCE_WIDTH, BLOCK_SIZE, OP) do { \
 	int dest_scan = DEST_WIDTH - BLOCK_SIZE; \
 	int source_scan = SOURCE_WIDTH - BLOCK_SIZE; \
@@ -3281,7 +3444,10 @@ void plm_video_process_macroblock(
 			break
 
 	switch ((interpolate << 2) | (odd_h << 1) | (odd_v)) {
-		PLM_MB_CASE(0, 0, 0, (s[si]));
+//		PLM_MB_CASE(0, 0, 0, (s[si]));
+    case 0:
+        PLM_BLOCK_COPY(d, di, dw, si, dw, block_size, s[si]);
+        break;
 		PLM_MB_CASE(0, 0, 1, (s[si] + s[si + dw] + 1) >> 1);
 		PLM_MB_CASE(0, 1, 0, (s[si] + s[si + 1] + 1) >> 1);
 		PLM_MB_CASE(0, 1, 1, (s[si] + s[si + 1] + s[si + dw] + s[si + dw + 1] + 2) >> 2);
@@ -3295,10 +3461,42 @@ void plm_video_process_macroblock(
 	#undef PLM_MB_CASE
 }
 
+//
+// Fast VLC decode of the DCT coefficients
+// The codes are 2-16 bits in length
+//
+uint16_t plm_read_dct_vlc_fast(plm_video_t *self)
+{
+    uint16_t u16Code;
+    plm_buffer_t *buf = self->buffer;
+    uint16_t *pTable = self->fast_vlc;
+    uint8_t *pLens = (uint8_t *)&pTable[2048];
+    int shift = (int)buf->bit_index;
+    int len, bits = shift & 7;
+    uint32_t c;
+    uint32_t *s;
+                
+    s = (uint32_t *)&buf->bytes[shift >> 3];
+    c = __builtin_bswap32(s[0]); // big endian bit stream
+    c >>= (16-bits); // prepare lower 16 bits
+    if (c & 0xfc00) { // short code
+        c = (c >> 6) & 0x3ff;
+    } else { // long code
+        c = (c & 0x3ff)+0x400;
+    }
+    u16Code = pTable[c];
+    len = pLens[c]; // true code length
+    shift += len;
+    buf->bit_index = shift;
+
+    return u16Code;
+} /* plm_read_dct_vlc_fast() */
+
 void plm_video_decode_block(plm_video_t *self, int block) {
 
 	int n = 0;
-	uint8_t *quant_matrix;
+    int level = 0;
+    uint8_t *quant_matrix;
 
 	// Decode DC coefficient of intra-coded blocks
 	if (self->macroblock_intra) {
@@ -3335,18 +3533,54 @@ void plm_video_decode_block(plm_video_t *self, int block) {
 	}
 	else {
 		quant_matrix = self->non_intra_quant_matrix;
+        // check for a run/level of 0/1 encoded as 1 bit; only for this situation of DC value
+        if (plm_buffer_peek_non_zero(self->buffer, 1)) {
+            self->buffer->bit_index++; // yes, it's the length 1 code
+            if (plm_buffer_read(self->buffer, 1))
+            {
+                level = -level;
+            }
+            // Dequantize, oddify, clip
+            level <<= 1;
+            level += (level < 0 ? -1 : 1);
+            level = (level * self->quantizer_scale * quant_matrix[0]) >> 4;
+            if ((level & 1) == 0)
+            {
+                level -= level > 0 ? 1 : -1;
+            }
+            if (level > 2047)
+            {
+                level = 2047;
+            }
+            else if (level < -2048)
+            {
+                level = -2048;
+            }
+            // Save premultiplied coefficient
+            self->block_data[0] = level * PLM_VIDEO_PREMULTIPLIER_MATRIX[0];
+            n = 1;
+        }
 	}
 
 	// Decode AC coefficients (+DC for non-intra)
-	int level = 0;
 	while (TRUE) {
 		int run = 0;
-		uint16_t coeff = plm_buffer_read_vlc_uint(self->buffer, PLM_VIDEO_DCT_COEFF);
-
-		if ((coeff == 0x0001) && (n > 0) && (plm_buffer_read(self->buffer, 1) == 0)) {
+        uint16_t coeff = plm_read_dct_vlc_fast(self);
+//        uint16_t coeff = (uint16_t)plm_buffer_read_vlc_uint(self->buffer, PLM_VIDEO_DCT_COEFF);
+//        if (coeff_new != coeff) {
+//            printf("mismatch: correct = 0x%04x, incorrect = 0x%04x\n", coeff, coeff_new);
+//        } else {
+//            printf("correct: 0x%04x\n", coeff_new);
+//        }
+//		if ((coeff == 0x0001) && (n > 0) && (plm_buffer_read(self->buffer, 1) == 0)) {
 			// end_of_block
-			break;
-		}
+//			break;
+//		}
+        if (coeff == 0x0000) // EOB
+                {
+                        // end_of_block
+                        break;
+                }
 		if (coeff == 0xffff) {
 			// escape
 			run = plm_buffer_read(self->buffer, 6);
@@ -3424,11 +3658,17 @@ void plm_video_decode_block(plm_video_t *self, int block) {
 	if (self->macroblock_intra) {
 		// Overwrite (no prediction)
 		if (n == 1) {
-			int clamped = plm_clamp((s[0] + 128) >> 8);
-			PLM_BLOCK_SET(d, di, dw, si, 8, 8, clamped);
-			s[0] = 0;
-		}
-		else {
+            uint32_t clamped = plm_clamp((s[0] + 128) >> 8);
+            uint32_t *d32 = (uint32_t *)&d[di];
+            //              PLM_BLOCK_SET(d, di, dw, si, 8, 8, clamped);
+            clamped = (clamped | clamped << 8); // make a 32-bit pattern
+            clamped = (clamped | clamped << 16);
+            for (int yy = 0; yy<8; yy++) {
+                d32[0] = d32[1] = clamped; // 8 copies per row
+                d32 += dw/4;
+            }
+            s[0] = 0;
+		} else {
 			plm_video_idct(s);
 			PLM_BLOCK_SET(d, di, dw, si, 8, 8, plm_clamp(s[si]));
 			memset(self->block_data, 0, sizeof(self->block_data));
