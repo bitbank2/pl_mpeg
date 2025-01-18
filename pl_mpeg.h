@@ -195,7 +195,7 @@ typedef struct plm_audio_t plm_audio_t;
 typedef struct {
 	int type;
 	double pts;
-	size_t length;
+	uint32_t length;
 	uint8_t *data;
 } plm_packet_t;
 
@@ -291,7 +291,7 @@ plm_t *plm_create_with_file(FILE *fh, int close_when_done);
 // free_when_done to let plmpeg call free() on the pointer when plm_destroy() 
 // is called.
 
-plm_t *plm_create_with_memory(uint8_t *bytes, size_t length, int free_when_done);
+plm_t *plm_create_with_memory(uint8_t *bytes, uint32_t length, int free_when_done);
 
 
 // Create a plmpeg instance with a plm_buffer as source. Pass TRUE to
@@ -508,13 +508,13 @@ plm_buffer_t *plm_buffer_create_with_file(FILE *fh, int close_when_done);
 // free_when_done to let plmpeg call free() on the pointer when plm_destroy() 
 // is called.
 
-plm_buffer_t *plm_buffer_create_with_memory(uint8_t *bytes, size_t length, int free_when_done);
+plm_buffer_t *plm_buffer_create_with_memory(uint8_t *bytes, uint32_t length, int free_when_done);
 
 
 // Create an empty buffer with an initial capacity. The buffer will grow
 // as needed. Data that has already been read, will be discarded.
 
-plm_buffer_t *plm_buffer_create_with_capacity(size_t capacity);
+plm_buffer_t *plm_buffer_create_with_capacity(uint32_t capacity);
 
 
 // Create an empty buffer with an initial capacity. The buffer will grow
@@ -522,7 +522,7 @@ plm_buffer_t *plm_buffer_create_with_capacity(size_t capacity);
 // loading a file over the network, without needing to throttle the download. 
 // It also allows for seeking in the already loaded data.
 
-plm_buffer_t *plm_buffer_create_for_appending(size_t initial_capacity);
+plm_buffer_t *plm_buffer_create_for_appending(uint32_t initial_capacity);
 
 
 // Destroy a buffer instance and free all data
@@ -536,7 +536,7 @@ void plm_buffer_destroy(plm_buffer_t *self);
 // passed in length, except when the buffer was created _with_memory() for
 // which _write() is forbidden.
 
-size_t plm_buffer_write(plm_buffer_t *self, uint8_t *bytes, size_t length);
+uint32_t plm_buffer_write(plm_buffer_t *self, uint8_t *bytes, uint32_t length);
 
 
 // Mark the current byte length as the end of this buffer and signal that no 
@@ -888,7 +888,7 @@ plm_t *plm_create_with_file(FILE *fh, int close_when_done) {
 	return plm_create_with_buffer(buffer, TRUE);
 }
 
-plm_t *plm_create_with_memory(uint8_t *bytes, size_t length, int free_when_done) {
+plm_t *plm_create_with_memory(uint8_t *bytes, uint32_t length, int free_when_done) {
 	plm_buffer_t *buffer = plm_buffer_create_with_memory(bytes, length, free_when_done);
 	return plm_create_with_buffer(buffer, TRUE);
 }
@@ -1370,14 +1370,14 @@ enum plm_buffer_mode {
 };
 
 struct plm_buffer_t {
-	size_t bit_index;
-	size_t capacity;
-	size_t length;
-	size_t total_size;
-	int discard_read_bytes;
-	int has_ended;
-	int free_when_done;
-	int close_when_done;
+	uint32_t bit_index;
+    uint32_t capacity;
+    uint32_t length;
+    uint32_t total_size;
+	uint8_t discard_read_bytes;
+    uint8_t has_ended;
+    uint8_t free_when_done;
+    uint8_t close_when_done;
 	FILE *fh;
 	plm_buffer_load_callback load_callback;
 	void *load_callback_user_data;
@@ -1397,7 +1397,7 @@ typedef struct {
 
 
 void plm_buffer_seek(plm_buffer_t *self, size_t pos);
-size_t plm_buffer_tell(plm_buffer_t *self);
+uint32_t plm_buffer_tell(plm_buffer_t *self);
 void plm_buffer_discard_read_bytes(plm_buffer_t *self);
 void plm_buffer_load_file_callback(plm_buffer_t *self, void *user);
 
@@ -1428,14 +1428,14 @@ plm_buffer_t *plm_buffer_create_with_file(FILE *fh, int close_when_done) {
 	self->discard_read_bytes = TRUE;
 	
 	fseek(self->fh, 0, SEEK_END);
-	self->total_size = ftell(self->fh);
+	self->total_size = (uint32_t)ftell(self->fh);
 	fseek(self->fh, 0, SEEK_SET);
 
 	plm_buffer_set_load_callback(self, plm_buffer_load_file_callback, NULL);
 	return self;
 }
 
-plm_buffer_t *plm_buffer_create_with_memory(uint8_t *bytes, size_t length, int free_when_done) {
+plm_buffer_t *plm_buffer_create_with_memory(uint8_t *bytes, uint32_t length, int free_when_done) {
 	plm_buffer_t *self = (plm_buffer_t *)PLM_MALLOC(sizeof(plm_buffer_t));
 	memset(self, 0, sizeof(plm_buffer_t));
 	self->capacity = length;
@@ -1448,7 +1448,7 @@ plm_buffer_t *plm_buffer_create_with_memory(uint8_t *bytes, size_t length, int f
 	return self;
 }
 
-plm_buffer_t *plm_buffer_create_with_capacity(size_t capacity) {
+plm_buffer_t *plm_buffer_create_with_capacity(uint32_t capacity) {
 	plm_buffer_t *self = (plm_buffer_t *)PLM_MALLOC(sizeof(plm_buffer_t));
 	memset(self, 0, sizeof(plm_buffer_t));
 	self->capacity = capacity;
@@ -1459,7 +1459,7 @@ plm_buffer_t *plm_buffer_create_with_capacity(size_t capacity) {
 	return self;
 }
 
-plm_buffer_t *plm_buffer_create_for_appending(size_t initial_capacity) {
+plm_buffer_t *plm_buffer_create_for_appending(uint32_t initial_capacity) {
 	plm_buffer_t *self = plm_buffer_create_with_capacity(initial_capacity);
 	self->mode = PLM_BUFFER_MODE_APPEND;
 	self->discard_read_bytes = FALSE;
@@ -1486,7 +1486,7 @@ size_t plm_buffer_get_remaining(plm_buffer_t *self) {
 	return self->length - (self->bit_index >> 3);
 }
 
-size_t plm_buffer_write(plm_buffer_t *self, uint8_t *bytes, size_t length) {
+uint32_t plm_buffer_write(plm_buffer_t *self, uint8_t *bytes, uint32_t length) {
 	if (self->mode == PLM_BUFFER_MODE_FIXED_MEM) {
 		return 0;
 	}
@@ -1505,7 +1505,7 @@ size_t plm_buffer_write(plm_buffer_t *self, uint8_t *bytes, size_t length) {
 	// Do we have to resize to fit the new data?
 	size_t bytes_available = self->capacity - self->length;
 	if (bytes_available < length) {
-		size_t new_size = self->capacity;
+		uint32_t new_size = self->capacity;
 		do {
 			new_size *= 2;
 		} while (new_size - self->length < length);
@@ -1550,13 +1550,13 @@ void plm_buffer_seek(plm_buffer_t *self, size_t pos) {
 		self->total_size = 0;
 	}
 	else if (pos < self->length) {
-		self->bit_index = pos << 3;
+		self->bit_index = (uint32_t)(pos << 3);
 	}
 }
 
-size_t plm_buffer_tell(plm_buffer_t *self) {
+uint32_t plm_buffer_tell(plm_buffer_t *self) {
 	return self->mode == PLM_BUFFER_MODE_FILE
-		? ftell(self->fh) + (self->bit_index >> 3) - self->length
+		? (uint32_t)ftell(self->fh) + (self->bit_index >> 3) - self->length
 		: self->bit_index >> 3;
 }
 
@@ -1567,9 +1567,20 @@ void plm_buffer_discard_read_bytes(plm_buffer_t *self) {
 		self->length = 0;
 	}
 	else if (byte_pos > 0) {
-		memmove(self->bytes, self->bytes + byte_pos, self->length - byte_pos);
-		self->bit_index -= byte_pos << 3;
-		self->length -= byte_pos;
+        // This normally moves only the last 4 bytes; calling memmove is a waste of time
+        if (self->length - byte_pos < 8) {
+            uint8_t *d = self->bytes;
+            uint8_t *s = &self->bytes[byte_pos];
+            uint8_t *pEnd = &self->bytes[self->length];
+            while (s < pEnd) {
+                *d++ = *s++;
+            }
+            self->bit_index -= byte_pos << 3;
+            self->length -= byte_pos;
+        } else { // no need to move anything
+            byte_pos |= 0;
+//            memmove(self->bytes, self->bytes + byte_pos, self->length - byte_pos);
+        }
 	}
 }
 
@@ -1619,7 +1630,7 @@ uint32_t plm_buffer_read(plm_buffer_t *self, int count) {
 //	}
 
 	uint32_t value = 0;
-    size_t bit_index = self->bit_index;
+    uint32_t bit_index = self->bit_index;
     uint8_t *s = &self->bytes[bit_index >> 3];
     uint32_t u32 = *(uint32_t *)s; // assume we can read unaligned
     u32 = __builtin_bswap32(u32); // codes are stored as big-endian
@@ -1666,41 +1677,23 @@ int plm_buffer_skip_bytes(plm_buffer_t *self, uint8_t v) {
 }
 
 int plm_buffer_next_start_code(plm_buffer_t *self) {
-#ifdef OLD_WAY
-	plm_buffer_align(self);
-
-	while (plm_buffer_has(self, (5 << 3))) {
-		size_t byte_index = (self->bit_index) >> 3;
-		if (
-			self->bytes[byte_index] == 0x00 &&
-			self->bytes[byte_index + 1] == 0x00 &&
-			self->bytes[byte_index + 2] == 0x01
-		) {
-			self->bit_index = (byte_index + 4) << 3;
-			return self->bytes[byte_index + 3];
-		}
-		self->bit_index += 8;
-	}
-	return -1;
-#else
     uint8_t *s, *pEnd;
 try_again:
     s = &self->bytes[(self->bit_index+7)>>3]; // start on a byte boundary
     pEnd = &self->bytes[self->length];
     while ((int)(pEnd - s) >= 5) {
         if (s[0] == 0 && s[1] == 0 && s[2] == 1) { // start code
-            self->bit_index = (size_t)(s + 4 - self->bytes) << 3;
+            self->bit_index = (uint32_t)(s + 4 - self->bytes) << 3;
             return s[3];
         }
         s++;
     }
     // we've run out of data, try to read more
-    self->bit_index = (size_t)(s - self->bytes) << 3;
+    self->bit_index = (uint32_t)(s - self->bytes) << 3;
     if (plm_buffer_has(self, (5 << 3))) {
         goto try_again;
     }
     return -1; // we failed to find a start code and ran out of data
-#endif
 } /* plm_buffer_next_start_code() */
 
 int plm_buffer_find_start_code(plm_buffer_t *self, int code) {
@@ -1715,7 +1708,7 @@ int plm_buffer_find_start_code(plm_buffer_t *self, int code) {
 }
 
 int plm_buffer_has_start_code(plm_buffer_t *self, int code) {
-	size_t previous_bit_index = self->bit_index;
+	uint32_t previous_bit_index = self->bit_index;
 	int previous_discard_read_bytes = self->discard_read_bytes;
 	
 	self->discard_read_bytes = FALSE;
@@ -2825,7 +2818,7 @@ void plm_video_copy_macroblock(plm_video_t *self, plm_frame_t *s, int motion_h, 
 void plm_video_interpolate_macroblock(plm_video_t *self, plm_frame_t *s, int motion_h, int motion_v);
 void plm_video_process_macroblock(plm_video_t *self, uint8_t *s, uint8_t *d, int mh, int mb, int bs, int interp);
 void plm_video_decode_block(plm_video_t *self, int block);
-void plm_video_idct(int *block);
+void plm_video_idct(int *block, int iMaxIndex);
 void plm_make_fast_vlc(plm_video_t *self);
 
 //
@@ -3506,9 +3499,42 @@ void plm_video_process_macroblock(
         PLM_BLOCK_COPY(d, di, dw, si, dw, block_size, s[si]);
         break;
 		PLM_MB_CASE(0, 0, 1, (s[si] + s[si + dw] + 1) >> 1);
-		PLM_MB_CASE(0, 1, 0, (s[si] + s[si + 1] + 1) >> 1);
-		PLM_MB_CASE(0, 1, 1, (s[si] + s[si + 1] + s[si + dw] + s[si + dw + 1] + 2) >> 2);
-
+//            PLM_MB_CASE(0, 1, 0, (s[si] + s[si + 1] + 1) >> 1);
+        case 2: // 2x1 (horizontal) average of sample pairs
+        {
+            int dest_scan = dw - block_size;
+            int a, b;
+            for (int y = 0; y < block_size; y++) {
+                a = s[si];
+                for (int x = 0; x < block_size; x++) {
+                    b = s[si+1];
+                    d[di] = (a+b+1)>>1;
+                    a = b;
+                    si++; di++;
+                } // for x
+                si += dest_scan;
+                di += dest_scan;
+            } // for y
+        }
+            break;
+//		PLM_MB_CASE(0, 1, 1, (s[si] + s[si + 1] + s[si + dw] + s[si + dw + 1] + 2) >> 2);
+        case 3: // 2x2 average
+        {
+            int dest_scan = dw - block_size;
+            int a0, b0, a1, b1;
+            for (int y = 0; y < block_size; y++) {
+                a0 = s[si]; a1 = s[si+dw];
+                for (int x = 0; x < block_size; x++) {
+                    b0 = s[si+1]; b1 = s[si+dw+1];
+                    d[di] = (a0+b0+a1+b1+2)>>2;
+                    a0 = b0; a1 = b1;
+                    si++; di++;
+                } // for x
+                si += dest_scan;
+                di += dest_scan;
+            } // for y
+        }
+            break;
 		PLM_MB_CASE(1, 0, 0, (d[di] + (s[si]) + 1) >> 1);
 		PLM_MB_CASE(1, 0, 1, (d[di] + ((s[si] + s[si + dw] + 1) >> 1) + 1) >> 1);
 		PLM_MB_CASE(1, 1, 0, (d[di] + ((s[si] + s[si + 1] + 1) >> 1) + 1) >> 1);
@@ -3714,7 +3740,7 @@ void plm_video_decode_block(plm_video_t *self, int block) {
 	int si = 0;
 	if (self->macroblock_intra) {
 		// Overwrite (no prediction)
-		if (n == 1) {
+		if (n == 1) { // no A/C coefficients
             uint32_t clamped = plm_clamp((s[0] + 128) >> 8);
             uint32_t *d32 = (uint32_t *)&d[di];
             //              PLM_BLOCK_SET(d, di, dw, si, 8, 8, clamped);
@@ -3726,7 +3752,7 @@ void plm_video_decode_block(plm_video_t *self, int block) {
             }
             s[0] = 0;
 		} else {
-			plm_video_idct(s);
+			plm_video_idct(s, n);
 			PLM_BLOCK_SET(d, di, dw, si, 8, 8, plm_clamp(s[si]));
 			memset(self->block_data, 0, sizeof(self->block_data));
 		}
@@ -3739,78 +3765,141 @@ void plm_video_decode_block(plm_video_t *self, int block) {
 			s[0] = 0;
 		}
 		else {
-			plm_video_idct(s);
+			plm_video_idct(s, n);
 			PLM_BLOCK_SET(d, di, dw, si, 8, 8, plm_clamp(d[di] + s[si]));
 			memset(self->block_data, 0, sizeof(self->block_data));
 		}
 	}
 }
 
-void plm_video_idct(int *block) {
+void plm_video_idct(int *block, int iMaxIndex) {
 	int
 		b1, b3, b4, b6, b7, tmp1, tmp2, m0,
 		x0, x1, x2, x3, x4, y3, y4, y5, y6, y7;
 
-	// Transform columns
-	for (int i = 0; i < 8; ++i) {
-		b1 = block[4 * 8 + i];
-		b3 = block[2 * 8 + i] + block[6 * 8 + i];
-		b4 = block[5 * 8 + i] - block[3 * 8 + i];
-		tmp1 = block[1 * 8 + i] + block[7 * 8 + i];
-		tmp2 = block[3 * 8 + i] + block[5 * 8 + i];
-		b6 = block[1 * 8 + i] - block[7 * 8 + i];
-		b7 = tmp1 + tmp2;
-		m0 = block[0 * 8 + i];
-		x4 = ((b6 * 473 - b4 * 196 + 128) >> 8) - b7;
-		x0 = x4 - (((tmp1 - tmp2) * 362 + 128) >> 8);
-		x1 = m0 - b1;
-		x2 = (((block[2 * 8 + i] - block[6 * 8 + i]) * 362 + 128) >> 8) - b3;
-		x3 = m0 + b1;
-		y3 = x1 + x2;
-		y4 = x3 + b3;
-		y5 = x1 - x2;
-		y6 = x3 - b3;
-		y7 = -x0 - ((b4 * 473 + b6 * 196 + 128) >> 8);
-		block[0 * 8 + i] = b7 + y4;
-		block[1 * 8 + i] = x4 + y3;
-		block[2 * 8 + i] = y5 - x0;
-		block[3 * 8 + i] = y6 - y7;
-		block[4 * 8 + i] = y6 + y7;
-		block[5 * 8 + i] = x0 + y5;
-		block[6 * 8 + i] = y3 - x4;
-		block[7 * 8 + i] = y4 - b7;
-	}
-
-	// Transform rows
-	for (int i = 0; i < 64; i += 8) {
-		b1 = block[4 + i];
-		b3 = block[2 + i] + block[6 + i];
-		b4 = block[5 + i] - block[3 + i];
-		tmp1 = block[1 + i] + block[7 + i];
-		tmp2 = block[3 + i] + block[5 + i];
-		b6 = block[1 + i] - block[7 + i];
-		b7 = tmp1 + tmp2;
-		m0 = block[0 + i];
-		x4 = ((b6 * 473 - b4 * 196 + 128) >> 8) - b7;
-		x0 = x4 - (((tmp1 - tmp2) * 362 + 128) >> 8);
-		x1 = m0 - b1;
-		x2 = (((block[2 + i] - block[6 + i]) * 362 + 128) >> 8) - b3;
-		x3 = m0 + b1;
-		y3 = x1 + x2;
-		y4 = x3 + b3;
-		y5 = x1 - x2;
-		y6 = x3 - b3;
-		y7 = -x0 - ((b4 * 473 + b6 * 196 + 128) >> 8);
-		block[0 + i] = (b7 + y4 + 128) >> 8;
-		block[1 + i] = (x4 + y3 + 128) >> 8;
-		block[2 + i] = (y5 - x0 + 128) >> 8;
-		block[3 + i] = (y6 - y7 + 128) >> 8;
-		block[4 + i] = (y6 + y7 + 128) >> 8;
-		block[5 + i] = (x0 + y5 + 128) >> 8;
-		block[6 + i] = (y3 - x4 + 128) >> 8;
-		block[7 + i] = (y4 - b7 + 128) >> 8;
-	}
-}
+    if (iMaxIndex < 10) { // much simpler calculations when the matrix is mostly empty :)
+        // max column is 4th and max row is 4th (at least 3/4 of the matrix is empty)
+        // Transform columns
+        for (int i = 0; i < 4; ++i) { // only need to do 4 columns because the rest result in all 0's
+            b1 = 0; //block[4 * 8 + i];
+            b3 = block[2 * 8 + i]; // + block[6 * 8 + i];
+            b4 = 0/*block[5 * 8 + i]*/ - block[3 * 8 + i];
+            tmp1 = block[1 * 8 + i];// + block[7 * 8 + i];
+            tmp2 = block[3 * 8 + i];// + block[5 * 8 + i];
+            b6 = block[1 * 8 + i];// - block[7 * 8 + i];
+            b7 = tmp1 + tmp2;
+            m0 = block[0 * 8 + i];
+            x4 = ((b6 * 473 - b4 * 196 + 128) >> 8) - b7;
+            x0 = x4 - (((tmp1 - tmp2) * 362 + 128) >> 8);
+            x1 = m0 - b1;
+            x2 = (((block[2 * 8 + i] /* - block[6 * 8 + i] */) * 362  + 128) >> 8) - b3;
+            x3 = m0 + b1;
+            y3 = x1 + x2;
+            y4 = x3 + b3;
+            y5 = x1 - x2;
+            y6 = x3 - b3;
+            y7 = -x0 - ((b4 * 473 + b6 * 196 + 128) >> 8);
+            block[0 * 8 + i] = b7 + y4;
+            block[1 * 8 + i] = x4 + y3;
+            block[2 * 8 + i] = y5 - x0;
+            block[3 * 8 + i] = y6 - y7;
+            block[4 * 8 + i] = y6 + y7;
+            block[5 * 8 + i] = x0 + y5;
+            block[6 * 8 + i] = y3 - x4;
+            block[7 * 8 + i] = y4 - b7;
+        }
+        
+        // Transform rows
+        for (int i = 0; i < 64; i += 8) {
+            b1 = 0; //block[4 + i];
+            b3 = block[2 + i]; // + block[6 + i];
+            b4 = 0 /*block[5 + i] */ - block[3 + i];
+            tmp1 = block[1 + i]; // + block[7 + i];
+            tmp2 = block[3 + i]; // + block[5 + i];
+            b6 = block[1 + i]; // - block[7 + i];
+            b7 = tmp1 + tmp2;
+            m0 = block[0 + i];
+            x4 = ((b6 * 473 - b4 * 196 + 128) >> 8) - b7;
+            x0 = x4 - (((tmp1 - tmp2) * 362 + 128) >> 8);
+            x1 = m0 - b1;
+            x2 = (((block[2 + i] /* - block[6 + i] */) * 362 + 128) >> 8) - b3;
+            x3 = m0 + b1;
+            y3 = x1 + x2;
+            y4 = x3 + b3;
+            y5 = x1 - x2;
+            y6 = x3 - b3;
+            y7 = -x0 - ((b4 * 473 + b6 * 196 + 128) >> 8);
+            block[0 + i] = (b7 + y4 + 128) >> 8;
+            block[1 + i] = (x4 + y3 + 128) >> 8;
+            block[2 + i] = (y5 - x0 + 128) >> 8;
+            block[3 + i] = (y6 - y7 + 128) >> 8;
+            block[4 + i] = (y6 + y7 + 128) >> 8;
+            block[5 + i] = (x0 + y5 + 128) >> 8;
+            block[6 + i] = (y3 - x4 + 128) >> 8;
+            block[7 + i] = (y4 - b7 + 128) >> 8;
+        }
+    } else {
+        // Transform columns
+        for (int i = 0; i < 8; ++i) {
+            b1 = block[4 * 8 + i];
+            b3 = block[2 * 8 + i] + block[6 * 8 + i];
+            b4 = block[5 * 8 + i] - block[3 * 8 + i];
+            tmp1 = block[1 * 8 + i] + block[7 * 8 + i];
+            tmp2 = block[3 * 8 + i] + block[5 * 8 + i];
+            b6 = block[1 * 8 + i] - block[7 * 8 + i];
+            b7 = tmp1 + tmp2;
+            m0 = block[0 * 8 + i];
+            x4 = ((b6 * 473 - b4 * 196 + 128) >> 8) - b7;
+            x0 = x4 - (((tmp1 - tmp2) * 362 + 128) >> 8);
+            x1 = m0 - b1;
+            x2 = (((block[2 * 8 + i] - block[6 * 8 + i]) * 362 + 128) >> 8) - b3;
+            x3 = m0 + b1;
+            y3 = x1 + x2;
+            y4 = x3 + b3;
+            y5 = x1 - x2;
+            y6 = x3 - b3;
+            y7 = -x0 - ((b4 * 473 + b6 * 196 + 128) >> 8);
+            block[0 * 8 + i] = b7 + y4;
+            block[1 * 8 + i] = x4 + y3;
+            block[2 * 8 + i] = y5 - x0;
+            block[3 * 8 + i] = y6 - y7;
+            block[4 * 8 + i] = y6 + y7;
+            block[5 * 8 + i] = x0 + y5;
+            block[6 * 8 + i] = y3 - x4;
+            block[7 * 8 + i] = y4 - b7;
+        }
+        
+        // Transform rows
+        for (int i = 0; i < 64; i += 8) {
+            b1 = block[4 + i];
+            b3 = block[2 + i] + block[6 + i];
+            b4 = block[5 + i] - block[3 + i];
+            tmp1 = block[1 + i] + block[7 + i];
+            tmp2 = block[3 + i] + block[5 + i];
+            b6 = block[1 + i] - block[7 + i];
+            b7 = tmp1 + tmp2;
+            m0 = block[0 + i];
+            x4 = ((b6 * 473 - b4 * 196 + 128) >> 8) - b7;
+            x0 = x4 - (((tmp1 - tmp2) * 362 + 128) >> 8);
+            x1 = m0 - b1;
+            x2 = (((block[2 + i] - block[6 + i]) * 362 + 128) >> 8) - b3;
+            x3 = m0 + b1;
+            y3 = x1 + x2;
+            y4 = x3 + b3;
+            y5 = x1 - x2;
+            y6 = x3 - b3;
+            y7 = -x0 - ((b4 * 473 + b6 * 196 + 128) >> 8);
+            block[0 + i] = (b7 + y4 + 128) >> 8;
+            block[1 + i] = (x4 + y3 + 128) >> 8;
+            block[2 + i] = (y5 - x0 + 128) >> 8;
+            block[3 + i] = (y6 - y7 + 128) >> 8;
+            block[4 + i] = (y6 + y7 + 128) >> 8;
+            block[5 + i] = (x0 + y5 + 128) >> 8;
+            block[6 + i] = (y3 - x4 + 128) >> 8;
+            block[7 + i] = (y4 - b7 + 128) >> 8;
+        }
+    } // full transform
+} /* plm_video_idct() */
 
 // YCbCr conversion following the BT.601 standard:
 // https://infogalactic.com/info/YCbCr#ITU-R_BT.601_conversion
@@ -4191,7 +4280,7 @@ plm_samples_t *plm_audio_decode(plm_audio_t *self) {
 }
 
 int plm_audio_find_frame_sync(plm_audio_t *self) {
-	size_t i;
+	uint32_t i;
 	for (i = self->buffer->bit_index >> 3; i < self->buffer->length-1; i++) {
 		if (
 			self->buffer->bytes[i] == 0xFF &&
@@ -4425,12 +4514,15 @@ void plm_audio_decode_frame(plm_audio_t *self) {
 					}
 
 					// Output samples
+// multiply by the inverse is much faster on a computer
+#define AUDIO_INVERSE 1.0f / 2147418112.0f
 					#ifdef PLM_AUDIO_SEPARATE_CHANNELS
 						float *out_channel = ch == 0
 							? self->samples.left
 							: self->samples.right;
 						for (int j = 0; j < 32; j++) {
-							out_channel[out_pos + j] = self->U[j] / 2147418112.0f;
+                            out_channel[out_pos + j] = self->U[j] * AUDIO_INVERSE;
+//							out_channel[out_pos + j] = self->U[j] / 2147418112.0f;
 						}
 					#else
 						for (int j = 0; j < 32; j++) {
