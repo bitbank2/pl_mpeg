@@ -6,6 +6,7 @@
 //
 
 #import <Cocoa/Cocoa.h>
+#import <AudioToolbox/AudioToolbox.h>
 #define PL_MPEG_IMPLEMENTATION
 #include "../../pl_mpeg.h"
 
