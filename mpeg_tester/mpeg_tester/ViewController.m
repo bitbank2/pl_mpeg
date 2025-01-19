@@ -3,6 +3,12 @@
 //  mpeg_tester
 //
 //  Created by Laurence Bank on 1/16/25.
+//  I created this project to allow me to debug and profile the pl_mpeg player
+//  Xcode + Instruments is a powerful set of tools for performance profiling that allows me
+//  to see what I need in order to optimize the performance.
+//  This code is destined to run on 32-bit Microcontrollers such as the ESP32 and STM32
+//  The optimizations I've implemented allow reasonable size video (e.g. 320x240) to run full speed
+//  on constrained devices.
 //
 
 #import "ViewController.h"
@@ -51,6 +57,35 @@ void JPEGPixelRGB(uint32_t *pDest, int iY, int iCb, int iCr)
     pDest[0] = u32Pixel;
 } /* JPEGPixelRGB() */
 
+void ConvertYUV2RGB(void)
+{
+    int x, y;
+    uint8_t *pCb, *pCr, *pY;
+    uint32_t *d;
+    int iY, iCb, iCr;
+    
+    // Convert the MPEG frame from YUV to RGB32
+    for (y=0; y<iHeight; y+=2) { // work in 2x2 subsampled blocks
+        d = (uint32_t *)&pLocalImage[y * iWidth * 4];
+        pY = &theVideoFrame->y.data[y * iWidth];
+        pCb = &theVideoFrame->cb.data[y * iWidth/4];
+        pCr = &theVideoFrame->cr.data[y * iWidth/4];
+        for (x=0; x<iWidth; x+=2) {
+            iY = pY[0] << 12;
+            iCb = *pCb++;
+            iCr = *pCr++;
+            JPEGPixelRGB(d, iY, iCb, iCr);
+            iY = pY[1] << 12;
+            JPEGPixelRGB(&d[1], iY, iCb, iCr);
+            iY = pY[iWidth] << 12;
+            JPEGPixelRGB(&d[iWidth], iY, iCb, iCr);
+            iY = pY[iWidth + 1] << 12;
+            JPEGPixelRGB(&d[iWidth+1], iY, iCb, iCr);
+            pY += 2; d += 2;
+        }
+    }
+
+}
 void AudioPopSamples(unsigned char *pSamples, int iCount)
 {
     if (iAudioAvailable < iCount) //NSLog(@"not enough audio available\n");
@@ -73,6 +108,48 @@ void AudioPopSamples(unsigned char *pSamples, int iCount)
     iAudioAvailable -= iCount;
     //    g_print("leaving SG_PopSamples(), head=%d, tail=%d\n", iAudioHead, iAudioTail);
 } /* AudioPopSamples() */
+
+void AudioPushSamples(unsigned char *pSamples, int iCount)
+{
+    if (iAudioAvailable + iCount > iAudioTotal)
+    {
+        NSLog(@"too much audio generated\n");
+        return; // have to throw it away
+    }
+    //    g_print("entering SG_PushSamples(), pSamples =%d, pAudioBuffer=%d\n",(int)pSamples, (int)pAudioBuffer);
+    if (iAudioTail + iCount <= iAudioTotal) // simple case, no wrap around
+    {
+        memcpy(&pAudioBuffer[iAudioTail*iAudioSampleSize], pSamples, iCount*iAudioSampleSize);
+        iAudioTail += iCount;
+    }
+    else // have to wrap around
+    {
+        int iFirst = iAudioTotal - iAudioTail;
+        memcpy(&pAudioBuffer[iAudioTail*iAudioSampleSize], pSamples, iFirst*iAudioSampleSize);
+        memcpy(pAudioBuffer, &pSamples[iFirst*iAudioSampleSize], (iCount-iFirst)*iAudioSampleSize);
+        iAudioTail = iCount - iFirst;
+    }
+    iAudioAvailable += iCount;
+    //    g_print("leaving SG_PushSamples(), head=%d, tail=%d\n", iAudioHead, iAudioTail);
+} /* AudioPushSamples() */
+
+// This function gets called for each decoded video frame
+void my_video_callback(plm_t *plm, plm_frame_t *frame, void *user) {
+    if (bVideo) {
+        theVideoFrame = frame;
+        ConvertYUV2RGB();
+    }
+}
+
+// This function gets called for each decoded audio frame
+void my_audio_callback(plm_t *plm, plm_samples_t *frame, void *user) {
+    if (bAudio) {
+        for (int i=0; i<frame->count*2; i++) { // stereo pairs
+            i16Samples[i] = (int16_t)(frame->interleaved[i] * 32767.0f); // convert to 16-bit signed integers
+        }
+        AudioPushSamples((uint8_t *)i16Samples, frame->count);
+    }
+}
 
 void AudioEngineOutputBufferCallback(void *inUserData, AudioQueueRef inAQ, AudioQueueBufferRef inBuffer) {
 //    static int iCount = 0;
@@ -147,30 +224,6 @@ void AudioEnginePropertyListenerProc (void *inUserData, AudioQueueRef inAQ, Audi
 
 } /* viewDidLoad() */
 
-void AudioPushSamples(unsigned char *pSamples, int iCount)
-{
-    if (iAudioAvailable + iCount > iAudioTotal)
-    {
-        NSLog(@"too much audio generated\n");
-        return; // have to throw it away
-    }
-    //    g_print("entering SG_PushSamples(), pSamples =%d, pAudioBuffer=%d\n",(int)pSamples, (int)pAudioBuffer);
-    if (iAudioTail + iCount <= iAudioTotal) // simple case, no wrap around
-    {
-        memcpy(&pAudioBuffer[iAudioTail*iAudioSampleSize], pSamples, iCount*iAudioSampleSize);
-        iAudioTail += iCount;
-    }
-    else // have to wrap around
-    {
-        int iFirst = iAudioTotal - iAudioTail;
-        memcpy(&pAudioBuffer[iAudioTail*iAudioSampleSize], pSamples, iFirst*iAudioSampleSize);
-        memcpy(pAudioBuffer, &pSamples[iFirst*iAudioSampleSize], (iCount-iFirst)*iAudioSampleSize);
-        iAudioTail = iCount - iFirst;
-    }
-    iAudioAvailable += iCount;
-    //    g_print("leaving SG_PushSamples(), head=%d, tail=%d\n", iAudioHead, iAudioTail);
-} /* AudioPushSamples() */
-
 - (void) StopAudio
 {
     int i;
@@ -183,7 +236,6 @@ void AudioPushSamples(unsigned char *pSamples, int iCount)
     
 } /* StopAudio */
 
-
 - (void)setRepresentedObject:(id)representedObject {
     [super setRepresentedObject:representedObject];
 
@@ -193,7 +245,7 @@ void AudioPushSamples(unsigned char *pSamples, int iCount)
 - (IBAction)FileButtonPressed:(id)sender {
     NSOpenPanel *openDlg = [NSOpenPanel openPanel];
     [openDlg setCanChooseFiles:YES];
-    [openDlg setAllowedFileTypes:@[@"mpg", @"mpeg", @"MPG", @"MPEG"]];
+    [openDlg setAllowedFileTypes:@[@"mpg", @"mpeg", @"MPG", @"MPEG", @"DAT", @"dat"]];
     [openDlg setAllowsMultipleSelection:NO];
     
     [openDlg beginWithCompletionHandler:^(NSInteger result) {
@@ -211,6 +263,7 @@ void AudioPushSamples(unsigned char *pSamples, int iCount)
 {
     int iFrame, iSamplesPerFrame, iSamplesNeeded, iTotalSamples;
     useconds_t delay;
+    double frame_time;
     const char *filename = [self.FilenameLabel.stringValue UTF8String];
     // Initialize plmpeg, load the video file, install decode callbacks
     plm = plm_create_with_filename(filename);
@@ -218,6 +271,9 @@ void AudioPushSamples(unsigned char *pSamples, int iCount)
             NSLog(@"Couldn't open %s", filename);
             exit(1);
     }
+    // Install the video & audio decode callbacks
+    plm_set_video_decode_callback(plm, my_video_callback, NULL);
+    plm_set_audio_decode_callback(plm, my_audio_callback, NULL);
 
     if (!plm_probe(plm, 5000 * 1024)) {
             NSLog(@"No MPEG video or audio streams found in %s", filename);
@@ -226,6 +282,7 @@ void AudioPushSamples(unsigned char *pSamples, int iCount)
 
     samplerate = plm_get_samplerate(plm);
     framerate = plm_get_framerate(plm);
+    frame_time = 1.0 / framerate;
     iSamplesNeeded = iTotalSamples = 0;
     iSamplesPerFrame = (int)((float)samplerate / framerate);
 //    NSLog(
@@ -264,6 +321,7 @@ void AudioPushSamples(unsigned char *pSamples, int iCount)
     iFrame = 0;
     delay = (useconds_t)(1000000.0f / framerate);
     do {
+#ifdef OLD_WAY
         iSamplesNeeded += iSamplesPerFrame; // audio needed to keep up with the given sample rate
         theVideoFrame = plm_decode_video(plm);
         if (bVideo) {
@@ -272,7 +330,7 @@ void AudioPushSamples(unsigned char *pSamples, int iCount)
                 [self updateDisplay];
             }];
         }
-        theAudio = plm_decode_audio(plm);
+//        theAudio = plm_decode_audio(plm);
         if (bAudio) {
             while (iTotalSamples < iSamplesNeeded) {
                 theAudio = plm_decode_audio(plm);
@@ -293,6 +351,16 @@ void AudioPushSamples(unsigned char *pSamples, int iCount)
             usleep(delay);
         }
         iFrame++;
+#else
+        plm_decode(plm, frame_time);
+        // Update the NSImageView on the GUI thread
+        [[NSOperationQueue mainQueue] addOperationWithBlock:^{
+            [self updateDisplay];
+        }];
+        if (bThrottle) {
+            usleep(delay-2000);
+        }
+#endif
     } while (bPlaying && !plm_has_ended(plm));
 
     // All done
@@ -329,31 +397,7 @@ void AudioPushSamples(unsigned char *pSamples, int iCount)
     CGContextRef gtx;
     NSUInteger bitsPerComponent = 8;
     NSUInteger bytesPerRow = iWidth * 4;
-    int x, y;
-    uint8_t *pCb, *pCr, *pY;
-    uint32_t *d;
-    int iY, iCb, iCr;
     
-    // Convert the MPEG frame from YUV to RGB32
-    for (y=0; y<iHeight; y+=2) { // work in 2x2 subsampled blocks
-        d = (uint32_t *)&pLocalImage[y * iWidth * 4];
-        pY = &theVideoFrame->y.data[y * iWidth];
-        pCb = &theVideoFrame->cb.data[y * iWidth/4];
-        pCr = &theVideoFrame->cr.data[y * iWidth/4];
-        for (x=0; x<iWidth; x+=2) {
-            iY = pY[0] << 12;
-            iCb = *pCb++;
-            iCr = *pCr++;
-            JPEGPixelRGB(d, iY, iCb, iCr);
-            iY = pY[1] << 12;
-            JPEGPixelRGB(&d[1], iY, iCb, iCr);
-            iY = pY[iWidth] << 12;
-            JPEGPixelRGB(&d[iWidth], iY, iCb, iCr);
-            iY = pY[iWidth + 1] << 12;
-            JPEGPixelRGB(&d[iWidth+1], iY, iCb, iCr);
-            pY += 2; d += 2;
-        }
-    }
     // Convert the RGB8888 output of the display into a NSBitmap to display
     colorSpace = CGColorSpaceCreateDeviceRGB();
     gtx = CGBitmapContextCreate(pLocalImage, iWidth, iHeight, bitsPerComponent, bytesPerRow, colorSpace, kCGImageAlphaNoneSkipLast | kCGBitmapByteOrder32Big);

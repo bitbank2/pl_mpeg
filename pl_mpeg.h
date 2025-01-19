@@ -831,8 +831,17 @@ plm_samples_t *plm_audio_decode(plm_audio_t *self);
 #define FALSE 0
 #endif
 
+
 #ifndef PLM_MALLOC
+#ifdef ARDUINO_ARCH_ESP32
+#if !(defined(CONFIG_ESP32_SPIRAM_SUPPORT) || defined(CONFIG_ESP32S3_SPIRAM_SUPPORT))
+    #error "Please enable PSRAM support"
+#endif
+    #include "esp_heap_caps_init.h"
+    #define PLM_MALLOC(sz) heap_caps_aligned_alloc(16, sz, MALLOC_CAP_8BIT)
+#else
 	#define PLM_MALLOC(sz) malloc(sz)
+#endif
 	#define PLM_FREE(p) free(p)
 	#define PLM_REALLOC(p, sz) realloc(p, sz)
 #endif
@@ -2784,7 +2793,6 @@ struct plm_video_t {
 	plm_frame_t frame_forward;
 	plm_frame_t frame_backward;
 
-	uint8_t *frames_data;
     uint16_t *fast_vlc;
 
 	int block_data[64];
@@ -2884,7 +2892,9 @@ void plm_video_destroy(plm_video_t *self) {
 	}
 
 	if (self->has_sequence_header) {
-		PLM_FREE(self->frames_data);
+        PLM_FREE(self->frame_current.y.data);
+        PLM_FREE(self->frame_forward.y.data);
+        PLM_FREE(self->frame_backward.y.data);
 	}
     PLM_FREE(self->fast_vlc);
 	PLM_FREE(self);
@@ -3096,10 +3106,10 @@ int plm_video_decode_sequence_header(plm_video_t *self) {
 	size_t chroma_plane_size = self->chroma_width * self->chroma_height;
 	size_t frame_data_size = (luma_plane_size + 2 * chroma_plane_size);
 
-	self->frames_data = (uint8_t*)PLM_MALLOC(frame_data_size * 3);
-	plm_video_init_frame(self, &self->frame_current, self->frames_data + frame_data_size * 0);
-	plm_video_init_frame(self, &self->frame_forward, self->frames_data + frame_data_size * 1);
-	plm_video_init_frame(self, &self->frame_backward, self->frames_data + frame_data_size * 2);
+    // Split the allocations so that the ESP32 can fit 1 or more in SRAM instead of all in PSRAM
+    plm_video_init_frame(self, &self->frame_current, (uint8_t *)PLM_MALLOC(frame_data_size));
+    plm_video_init_frame(self, &self->frame_forward, (uint8_t *)PLM_MALLOC(frame_data_size));
+    plm_video_init_frame(self, &self->frame_backward, (uint8_t *)PLM_MALLOC(frame_data_size));
     // init the fast vlc lookup table
     plm_make_fast_vlc(self);
 
@@ -4527,7 +4537,7 @@ void plm_audio_decode_frame(plm_audio_t *self) {
 					#else
 						for (int j = 0; j < 32; j++) {
 							self->samples.interleaved[((out_pos + j) << 1) + ch] = 
-								self->U[j] / 2147418112.0f;
+                            self->U[j] * AUDIO_INVERSE; // / 2147418112.0f;
 						}
 					#endif
 				} // End of synthesis channel loop
