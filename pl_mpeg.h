@@ -147,8 +147,8 @@ See below for detailed the API documentation.
 #include <stdio.h>
 
 #ifdef __ARM_NEON
-//#include <arm_neon.h>
-#undef __ARM_NEON
+#include <arm_neon.h>
+//#undef __ARM_NEON
 #endif
 
 #ifdef __cplusplus
