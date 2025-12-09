@@ -30,8 +30,8 @@
             filePath = "../pl_mpeg.h"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "2861"
-            endingLineNumber = "2861"
+            startingLineNumber = "2862"
+            endingLineNumber = "2862"
             landmarkName = "plm_make_fast_vlc(self)"
             landmarkType = "9">
          </BreakpointContent>
@@ -110,8 +110,8 @@
             filePath = "../pl_mpeg.h"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "3009"
-            endingLineNumber = "3009"
+            startingLineNumber = "3010"
+            endingLineNumber = "3010"
             landmarkName = "plm_video_decode(self)"
             landmarkType = "9">
          </BreakpointContent>
@@ -190,8 +190,8 @@
             filePath = "../pl_mpeg.h"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "3013"
-            endingLineNumber = "3013"
+            startingLineNumber = "3014"
+            endingLineNumber = "3014"
             landmarkName = "plm_video_decode(self)"
             landmarkType = "9">
          </BreakpointContent>
@@ -238,8 +238,8 @@
             filePath = "../pl_mpeg.h"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "3593"
-            endingLineNumber = "3593"
+            startingLineNumber = "3596"
+            endingLineNumber = "3596"
             landmarkName = "plm_video_process_macroblock(self, s, d, motion_h, motion_v, block_size, interpolate)"
             landmarkType = "9">
          </BreakpointContent>
@@ -254,8 +254,8 @@
             filePath = "../pl_mpeg.h"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "3890"
-            endingLineNumber = "3890"
+            startingLineNumber = "3894"
+            endingLineNumber = "3894"
             landmarkName = "plm_video_decode_block(self, block)"
             landmarkType = "9">
          </BreakpointContent>
@@ -270,8 +270,8 @@
             filePath = "../pl_mpeg.h"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "3906"
-            endingLineNumber = "3906"
+            startingLineNumber = "3910"
+            endingLineNumber = "3910"
             landmarkName = "plm_video_decode_block(self, block)"
             landmarkType = "9">
          </BreakpointContent>
@@ -328,116 +328,64 @@
          BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
          <BreakpointContent
             uuid = "504E3340-F8BE-4096-AC65-FB558CBC196A"
-            shouldBeEnabled = "Yes"
+            shouldBeEnabled = "No"
             ignoreCount = "0"
             continueAfterRunningActions = "No"
             filePath = "../pl_mpeg.h"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "3525"
-            endingLineNumber = "3525"
+            startingLineNumber = "3528"
+            endingLineNumber = "3528"
             landmarkName = "plm_video_process_macroblock(self, s, d, motion_h, motion_v, block_size, interpolate)"
             landmarkType = "9">
-            <Locations>
-               <Location
-                  uuid = "504E3340-F8BE-4096-AC65-FB558CBC196A - a6da1354447f80bd"
-                  shouldBeEnabled = "Yes"
-                  ignoreCount = "0"
-                  continueAfterRunningActions = "No"
-                  symbolName = "plm_video_process_macroblock"
-                  moduleName = "mpeg_tester"
-                  usesParentBreakpointCondition = "Yes"
-                  urlString = "file:///Users/laurencebank/Projects/pl_mpeg/pl_mpeg.h"
-                  startingColumnNumber = "9223372036854775807"
-                  endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "3525"
-                  endingLineNumber = "3525">
-               </Location>
-               <Location
-                  uuid = "504E3340-F8BE-4096-AC65-FB558CBC196A - a6da1354447f80bd"
-                  shouldBeEnabled = "Yes"
-                  ignoreCount = "0"
-                  continueAfterRunningActions = "No"
-                  symbolName = "plm_video_process_macroblock"
-                  moduleName = "mpeg_tester"
-                  usesParentBreakpointCondition = "Yes"
-                  urlString = "file:///Users/laurencebank/Projects/pl_mpeg/pl_mpeg.h"
-                  startingColumnNumber = "9223372036854775807"
-                  endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "3525"
-                  endingLineNumber = "3525">
-               </Location>
-               <Location
-                  uuid = "504E3340-F8BE-4096-AC65-FB558CBC196A - a6da1354447f80bd"
-                  shouldBeEnabled = "Yes"
-                  ignoreCount = "0"
-                  continueAfterRunningActions = "No"
-                  symbolName = "plm_video_process_macroblock"
-                  moduleName = "mpeg_tester"
-                  usesParentBreakpointCondition = "Yes"
-                  urlString = "file:///Users/laurencebank/Projects/pl_mpeg/pl_mpeg.h"
-                  startingColumnNumber = "9223372036854775807"
-                  endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "3525"
-                  endingLineNumber = "3525">
-               </Location>
-               <Location
-                  uuid = "504E3340-F8BE-4096-AC65-FB558CBC196A - a6da1354447f80bd"
-                  shouldBeEnabled = "Yes"
-                  ignoreCount = "0"
-                  continueAfterRunningActions = "No"
-                  symbolName = "plm_video_process_macroblock"
-                  moduleName = "mpeg_tester"
-                  usesParentBreakpointCondition = "Yes"
-                  urlString = "file:///Users/laurencebank/Projects/pl_mpeg/pl_mpeg.h"
-                  startingColumnNumber = "9223372036854775807"
-                  endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "3525"
-                  endingLineNumber = "3525">
-               </Location>
-               <Location
-                  uuid = "504E3340-F8BE-4096-AC65-FB558CBC196A - a6da1354447f80bd"
-                  shouldBeEnabled = "Yes"
-                  ignoreCount = "0"
-                  continueAfterRunningActions = "No"
-                  symbolName = "plm_video_process_macroblock"
-                  moduleName = "mpeg_tester"
-                  usesParentBreakpointCondition = "Yes"
-                  urlString = "file:///Users/laurencebank/Projects/pl_mpeg/pl_mpeg.h"
-                  startingColumnNumber = "9223372036854775807"
-                  endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "3525"
-                  endingLineNumber = "3525">
-               </Location>
-               <Location
-                  uuid = "504E3340-F8BE-4096-AC65-FB558CBC196A - a6da1354447f80bd"
-                  shouldBeEnabled = "Yes"
-                  ignoreCount = "0"
-                  continueAfterRunningActions = "No"
-                  symbolName = "plm_video_process_macroblock"
-                  moduleName = "mpeg_tester"
-                  usesParentBreakpointCondition = "Yes"
-                  urlString = "file:///Users/laurencebank/Projects/pl_mpeg/pl_mpeg.h"
-                  startingColumnNumber = "9223372036854775807"
-                  endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "3525"
-                  endingLineNumber = "3525">
-               </Location>
-               <Location
-                  uuid = "504E3340-F8BE-4096-AC65-FB558CBC196A - a6da1354447f80bd"
-                  shouldBeEnabled = "Yes"
-                  ignoreCount = "0"
-                  continueAfterRunningActions = "No"
-                  symbolName = "plm_video_process_macroblock"
-                  moduleName = "mpeg_tester"
-                  usesParentBreakpointCondition = "Yes"
-                  urlString = "file:///Users/laurencebank/Projects/pl_mpeg/pl_mpeg.h"
-                  startingColumnNumber = "9223372036854775807"
-                  endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "3525"
-                  endingLineNumber = "3525">
-               </Location>
-            </Locations>
+         </BreakpointContent>
+      </BreakpointProxy>
+      <BreakpointProxy
+         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
+         <BreakpointContent
+            uuid = "6FA8CE36-CC8B-4B88-8A7B-931787066A74"
+            shouldBeEnabled = "No"
+            ignoreCount = "0"
+            continueAfterRunningActions = "No"
+            filePath = "mpeg_tester/ViewController.m"
+            startingColumnNumber = "9223372036854775807"
+            endingColumnNumber = "9223372036854775807"
+            startingLineNumber = "140"
+            endingLineNumber = "140"
+            landmarkName = "my_video_callback(plm, frame, user)"
+            landmarkType = "9">
+         </BreakpointContent>
+      </BreakpointProxy>
+      <BreakpointProxy
+         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
+         <BreakpointContent
+            uuid = "0B42FF33-A452-4731-88BC-84947B3CC9F9"
+            shouldBeEnabled = "No"
+            ignoreCount = "0"
+            continueAfterRunningActions = "No"
+            filePath = "../pl_mpeg.h"
+            startingColumnNumber = "9223372036854775807"
+            endingColumnNumber = "9223372036854775807"
+            startingLineNumber = "3518"
+            endingLineNumber = "3518"
+            landmarkName = "plm_video_process_macroblock(self, s, d, motion_h, motion_v, block_size, interpolate)"
+            landmarkType = "9">
+         </BreakpointContent>
+      </BreakpointProxy>
+      <BreakpointProxy
+         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
+         <BreakpointContent
+            uuid = "0098A0F5-9190-499E-8448-FDA4AD7EDEAE"
+            shouldBeEnabled = "No"
+            ignoreCount = "0"
+            continueAfterRunningActions = "No"
+            filePath = "../pl_mpeg.h"
+            startingColumnNumber = "9223372036854775807"
+            endingColumnNumber = "9223372036854775807"
+            startingLineNumber = "3901"
+            endingLineNumber = "3901"
+            landmarkName = "plm_video_decode_block(self, block)"
+            landmarkType = "9">
          </BreakpointContent>
       </BreakpointProxy>
    </Breakpoints>

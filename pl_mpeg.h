@@ -2569,7 +2569,8 @@ const uint8_t mpeg1_vlc_table[MPEG1_VLC_ELEMENTS][2] = {
  { 0x1c, 13 }, { 0x1b, 13 }, { 0x1f, 16 }, { 0x1e, 16 },
  { 0x1d, 16 }, { 0x1c, 16 }, { 0x1b, 16 },
  { 0x1, 6 }, /* escape */
- { 0x2, 2 }, /* EOB */
+    {0x1, 1}, // EOB?
+// { 0x2, 2 }, /* EOB */
  };
 const uint8_t mpeg1_level[MPEG1_VLC_ELEMENTS] = {
   1,  2,  3,  4,  5,  6,  7,  8,
@@ -2585,7 +2586,7 @@ const uint8_t mpeg1_level[MPEG1_VLC_ELEMENTS] = {
   1,  2,  1,  2,  1,  2,  1,  2,
   1,  2,  1,  2,  1,  2,  1,  2,
   1,  1,  1,  1,  1,  1,  1,  1,
-  1,  1,  1,  1,  1,  1,  1, 0xff /* escape */, 0x00 /* EOB */
+  1,  1,  1,  1,  1,  1,  1, 0xff /* escape */, 0x01 /* EOB */
 };
 
 const uint8_t mpeg1_run[MPEG1_VLC_ELEMENTS] = {
@@ -3513,7 +3514,9 @@ void plm_video_process_macroblock(
 	if (si > max_address || di > max_address) {
 		return; // corrupt video
 	}
-
+    if (si == 0) {
+        si |= 0;
+    }
 	#define PLM_MB_CASE(INTERPOLATE, ODD_H, ODD_V, OP) \
 		case ((INTERPOLATE << 2) | (ODD_H << 1) | (ODD_V)): \
 			PLM_BLOCK_SET(d, di, dw, si, dw, block_size, OP); \
@@ -3691,6 +3694,7 @@ uint16_t plm_read_dct_vlc_fast(plm_video_t *self)
     return u16Code;
 } /* plm_read_dct_vlc_fast() */
 
+#ifdef MY_STUFF
 void plm_video_decode_block(plm_video_t *self, int block) {
 
 	int n = 0;
@@ -3771,15 +3775,15 @@ void plm_video_decode_block(plm_video_t *self, int block) {
 //        } else {
 //            printf("correct: 0x%04x\n", coeff_new);
 //        }
-//		if ((coeff == 0x0001) && (n > 0) && (plm_buffer_read(self->buffer, 1) == 0)) {
+		if ((coeff == 0x0001) && (n > 0) && (plm_buffer_read(self->buffer, 1) == 0)) {
 			// end_of_block
-//			break;
-//		}
-        if (coeff == 0x0000) // EOB
-                {
+			break;
+		}
+//       if (coeff == 0x0000) // EOB
+//                {
                         // end_of_block
-                        break;
-                }
+//                        break;
+//                }
 		if (coeff == 0xffff) {
 			// escape
 			run = plm_buffer_read(self->buffer, 6);
@@ -3940,12 +3944,174 @@ void plm_video_decode_block(plm_video_t *self, int block) {
                 }
             }
 #else
+            if (block == 1 && self->mb_row == 0 && self->mb_col == 0) {
+                block |= 0;
+            }
 			PLM_BLOCK_SET(d, di, dw, si, 8, 8, plm_clamp(d[di] + s[si]));
 #endif
 			memset(self->block_data, 0, sizeof(self->block_data));
 		}
 	}
+} /* plm_video_decode_block() */
+#else
+void plm_video_decode_block(plm_video_t *self, int block) {
+
+    int n = 0;
+    uint8_t *quant_matrix;
+
+    // Decode DC coefficient of intra-coded blocks
+    if (self->macroblock_intra) {
+        int predictor;
+        int dct_size;
+
+        // DC prediction
+        int plane_index = block > 3 ? block - 3 : 0;
+        predictor = self->dc_predictor[plane_index];
+        dct_size = plm_buffer_read_vlc(self->buffer, PLM_VIDEO_DCT_SIZE[plane_index]);
+
+        // Read DC coeff
+        if (dct_size > 0) {
+            int differential = plm_buffer_read(self->buffer, dct_size);
+            if ((differential & (1 << (dct_size - 1))) != 0) {
+                self->block_data[0] = predictor + differential;
+            }
+            else {
+                self->block_data[0] = predictor + (-(1 << dct_size) | (differential + 1));
+            }
+        }
+        else {
+            self->block_data[0] = predictor;
+        }
+
+        // Save predictor value
+        self->dc_predictor[plane_index] = self->block_data[0];
+
+        // Dequantize + premultiply
+        self->block_data[0] <<= (3 + 5);
+
+        quant_matrix = self->intra_quant_matrix;
+        n = 1;
+    }
+    else {
+        quant_matrix = self->non_intra_quant_matrix;
+    }
+
+    // Decode AC coefficients (+DC for non-intra)
+    int level = 0;
+    while (TRUE) {
+        int run = 0;
+        uint16_t coeff = plm_read_dct_vlc_fast(self);
+//        if (coeff == 0x0000) { // EOB
+//             break;
+//        }
+//        uint16_t coeff = plm_buffer_read_vlc_uint(self->buffer, PLM_VIDEO_DCT_COEFF);
+
+        if ((coeff == 0x0001) && (n > 0) && (plm_buffer_read(self->buffer, 1) == 0)) {
+            // end_of_block
+            break;
+        }
+        if (coeff == 0xffff) {
+            // escape
+            run = plm_buffer_read(self->buffer, 6);
+            level = plm_buffer_read(self->buffer, 8);
+            if (level == 0) {
+                level = plm_buffer_read(self->buffer, 8);
+            }
+            else if (level == 128) {
+                level = plm_buffer_read(self->buffer, 8) - 256;
+            }
+            else if (level > 128) {
+                level = level - 256;
+            }
+        }
+        else {
+            run = coeff >> 8;
+            level = coeff & 0xff;
+            if (plm_buffer_read(self->buffer, 1)) {
+                level = -level;
+            }
+        }
+
+        n += run;
+        if (n < 0 || n >= 64) {
+            return; // invalid
+        }
+
+        int de_zig_zagged = PLM_VIDEO_ZIG_ZAG[n];
+        n++;
+
+        // Dequantize, oddify, clip
+        level = (unsigned)level << 1;
+        if (!self->macroblock_intra) {
+            level += (level < 0 ? -1 : 1);
+        }
+        level = (level * self->quantizer_scale * quant_matrix[de_zig_zagged]) >> 4;
+        if ((level & 1) == 0) {
+            level -= level > 0 ? 1 : -1;
+        }
+        if (level > 2047) {
+            level = 2047;
+        }
+        else if (level < -2048) {
+            level = -2048;
+        }
+
+        // Save premultiplied coefficient
+        self->block_data[de_zig_zagged] = level * PLM_VIDEO_PREMULTIPLIER_MATRIX[de_zig_zagged];
+    }
+
+    // Move block to its place
+    uint8_t *d;
+    int dw;
+    int di;
+
+    if (block < 4) {
+        d = self->frame_current.y.data;
+        dw = self->luma_width;
+        di = (self->mb_row * self->luma_width + self->mb_col) << 4;
+        if ((block & 1) != 0) {
+            di += 8;
+        }
+        if ((block & 2) != 0) {
+            di += self->luma_width << 3;
+        }
+    }
+    else {
+        d = (block == 4) ? self->frame_current.cb.data : self->frame_current.cr.data;
+        dw = self->chroma_width;
+        di = ((self->mb_row * self->luma_width) << 2) + (self->mb_col << 3);
+    }
+
+    int *s = self->block_data;
+    int si = 0;
+    if (self->macroblock_intra) {
+        // Overwrite (no prediction)
+        if (n == 1) {
+            int clamped = plm_clamp((s[0] + 128) >> 8);
+            PLM_BLOCK_SET(d, di, dw, si, 8, 8, clamped);
+            s[0] = 0;
+        }
+        else {
+            plm_video_idct(s, n);
+            PLM_BLOCK_SET(d, di, dw, si, 8, 8, plm_clamp(s[si]));
+            memset(self->block_data, 0, sizeof(self->block_data));
+        }
+    }
+    else {
+        // Add data to the predicted macroblock
+        if (n == 1) {
+            int value = (s[0] + 128) >> 8;
+            PLM_BLOCK_SET(d, di, dw, si, 8, 8, plm_clamp(d[di] + value));
+            s[0] = 0;
+        }
+        else {
+            plm_video_idct(s, n);
+            PLM_BLOCK_SET(d, di, dw, si, 8, 8, plm_clamp(d[di] + s[si]));
+            memset(self->block_data, 0, sizeof(self->block_data));
+        }
+    }
 }
+#endif
 
 void plm_video_idct(int32_t *block, int iMaxIndex) {
 	int

@@ -11,7 +11,7 @@
 #define PL_MPEG_IMPLEMENTATION
 #include <pl_mpeg.h>
 uint32_t crc32_table[256];
-uint32_t u32crc, u32sum;
+uint32_t u32crc_y, u32crc_cr, u32crc_cb, u32sum;
 
 uint32_t Reflect(uint32_t ref, char ch) 
 {// Used only by Init_CRC32_Table(). 
@@ -104,11 +104,11 @@ plm_frame_t *frame;
         if (frame) {
             // Calculate the CRC32 for the frame (pixel) data
             iSize = frame->width * frame->height;
-            u32crc = CalcCRC(frame->y.data, iSize);
-            u32crc += CalcCRC(frame->cr.data, iSize/4);
-            u32crc += CalcCRC(frame->cb.data, iSize/4);
-            printf("Frame %d CRC: 0x%08x\n", iFrame, u32crc);
-            u32sum += u32crc;          
+            u32crc_y = CalcCRC(frame->y.data, iSize);
+            u32crc_cr = CalcCRC(frame->cr.data, iSize/4);
+            u32crc_cb = CalcCRC(frame->cb.data, iSize/4);
+            printf("Frame %d CRC: y:0x%08x cr:0x%08x cb:0x%08x\n", iFrame, u32crc_y, u32crc_cr, u32crc_cb);
+            u32sum += u32crc_y;          
         }
     } while (!plm_has_ended(plm));
     printf("crc32 sum of entire video: 0x%08x\n", u32sum);
