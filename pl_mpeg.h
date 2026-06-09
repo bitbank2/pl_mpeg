@@ -144,7 +144,10 @@ See below for detailed the API documentation.
 #define PL_MPEG_H
 
 #include <stdint.h>
+#include <stddef.h>
+#ifndef PLM_NO_STDIO
 #include <stdio.h>
+#endif
 
 #ifdef __ARM_NEON
 #include <arm_neon.h>
@@ -271,12 +274,22 @@ typedef void(*plm_audio_decode_callback)
 
 typedef void(*plm_buffer_load_callback)(plm_buffer_t *self, void *user);
 
+// Callback function for plm_buffer when it needs to seek
+
+typedef void(*plm_buffer_seek_callback)(plm_buffer_t *self, size_t offset, void *user);
+
+
+// Callback function for plm_buffer when it needs to tell the position
+
+typedef size_t(*plm_buffer_tell_callback)(plm_buffer_t *self, void *user);
+
 
 
 // -----------------------------------------------------------------------------
 // plm_* public API
 // High-Level API for loading/demuxing/decoding MPEG-PS data
 
+#ifndef PLM_NO_STDIO
 
 // Create a plmpeg instance with a filename. Returns NULL if the file could not
 // be opened.
@@ -288,6 +301,8 @@ plm_t *plm_create_with_filename(const char *filename);
 // let plmpeg call fclose() on the handle when plm_destroy() is called.
 
 plm_t *plm_create_with_file(FILE *fh, int close_when_done);
+
+#endif // PLM_NO_STDIO
 
 
 // Create a plmpeg instance with a pointer to memory as source. This assumes the
@@ -495,6 +510,8 @@ plm_frame_t *plm_seek_frame(plm_t *self, double time, int seek_exact);
 #endif
 
 
+#ifndef PLM_NO_STDIO
+
 // Create a buffer instance with a filename. Returns NULL if the file could not
 // be opened.
 
@@ -505,6 +522,22 @@ plm_buffer_t *plm_buffer_create_with_filename(const char *filename);
 // to let plmpeg call fclose() on the handle when plm_destroy() is called.
 
 plm_buffer_t *plm_buffer_create_with_file(FILE *fh, int close_when_done);
+
+#endif // PLM_NO_STDIO
+
+
+// Create a buffer instance with custom callbacks for loading, seeking and
+// telling the position. This behaves like a file handle, but with user-defined
+// callbacks, useful for file handles that don't use the standard FILE API.
+// Setting the length and closing/freeing has to be done manually.
+
+plm_buffer_t *plm_buffer_create_with_callbacks(
+	plm_buffer_load_callback load_callback,
+	plm_buffer_seek_callback seek_callback,
+	plm_buffer_tell_callback tell_callback,
+	size_t length,
+	void *user
+);
 
 
 // Create a buffer instance with a pointer to memory as source. This assumes
@@ -829,6 +862,9 @@ plm_samples_t *plm_audio_decode(plm_audio_t *self);
 
 #include <string.h>
 #include <stdlib.h>
+#ifndef PLM_NO_STDIO
+#include <stdio.h>
+#endif
 
 #ifndef TRUE
 #define TRUE 1
@@ -851,7 +887,9 @@ plm_samples_t *plm_audio_decode(plm_audio_t *self);
 #endif
 
 #define PLM_UNUSED(expr) (void)(expr)
-
+#ifdef _MSC_VER
+	#pragma warning(disable:4996)
+#endif
 
 // -----------------------------------------------------------------------------
 // plm (high-level interface) implementation
@@ -888,6 +926,8 @@ void plm_read_video_packet(plm_buffer_t *buffer, void *user);
 void plm_read_audio_packet(plm_buffer_t *buffer, void *user);
 void plm_read_packets(plm_t *self, int requested_type);
 
+#ifndef PLM_NO_STDIO
+
 plm_t *plm_create_with_filename(const char *filename) {
 	plm_buffer_t *buffer = plm_buffer_create_with_filename(filename);
 	if (!buffer) {
@@ -901,6 +941,8 @@ plm_t *plm_create_with_file(FILE *fh, int close_when_done) {
 	return plm_create_with_buffer(buffer, TRUE);
 }
 
+#endif // PLM_NO_STDIO
+
 plm_t *plm_create_with_memory(uint8_t *bytes, uint32_t length, int free_when_done) {
 	plm_buffer_t *buffer = plm_buffer_create_with_memory(bytes, length, free_when_done);
 	return plm_create_with_buffer(buffer, TRUE);
@@ -908,6 +950,9 @@ plm_t *plm_create_with_memory(uint8_t *bytes, uint32_t length, int free_when_don
 
 plm_t *plm_create_with_buffer(plm_buffer_t *buffer, int destroy_when_done) {
 	plm_t *self = (plm_t *)PLM_MALLOC(sizeof(plm_t));
+	if (!self) {
+	    return NULL;
+	}
 	memset(self, 0, sizeof(plm_t));
 
 	self->demux = plm_demux_create(buffer, destroy_when_done);
@@ -1106,6 +1151,7 @@ void plm_rewind(plm_t *self) {
 
 	plm_demux_rewind(self->demux);
 	self->time = 0;
+	self->has_ended = FALSE;
 }
 
 int plm_get_loop(plm_t *self) {
@@ -1390,9 +1436,13 @@ struct plm_buffer_t {
 	uint8_t discard_read_bytes;
     uint8_t has_ended;
     uint8_t free_when_done;
+#ifndef PLM_NO_STDIO
     uint8_t close_when_done;
 	FILE *fh;
+#endif
 	plm_buffer_load_callback load_callback;
+	plm_buffer_seek_callback seek_callback;
+	plm_buffer_tell_callback tell_callback;
 	void *load_callback_user_data;
 	uint8_t *bytes;
 	enum plm_buffer_mode mode;
@@ -1412,7 +1462,12 @@ typedef struct {
 void plm_buffer_seek(plm_buffer_t *self, size_t pos);
 uint32_t plm_buffer_tell(plm_buffer_t *self);
 void plm_buffer_discard_read_bytes(plm_buffer_t *self);
+
+#ifndef PLM_NO_STDIO
 void plm_buffer_load_file_callback(plm_buffer_t *self, void *user);
+void plm_buffer_seek_file_callback(plm_buffer_t *self, size_t offset, void *user);
+size_t plm_buffer_tell_file_callback(plm_buffer_t *self, void *user);
+#endif
 
 int plm_buffer_has(plm_buffer_t *self, size_t count);
 uint32_t plm_buffer_read(plm_buffer_t *self, int count);
@@ -1424,6 +1479,8 @@ int plm_buffer_find_start_code(plm_buffer_t *self, int code);
 int plm_buffer_no_start_code(plm_buffer_t *self);
 int16_t plm_buffer_read_vlc(plm_buffer_t *self, const plm_vlc_t *table);
 uint16_t plm_buffer_read_vlc_uint(plm_buffer_t *self, const plm_vlc_uint_t *table);
+
+#ifndef PLM_NO_STDIO
 
 plm_buffer_t *plm_buffer_create_with_filename(const char *filename) {
 	FILE *fh = fopen(filename, "rb");
@@ -1444,12 +1501,36 @@ plm_buffer_t *plm_buffer_create_with_file(FILE *fh, int close_when_done) {
 	self->total_size = (uint32_t)ftell(self->fh);
 	fseek(self->fh, 0, SEEK_SET);
 
-	plm_buffer_set_load_callback(self, plm_buffer_load_file_callback, NULL);
+	self->load_callback = plm_buffer_load_file_callback;
+	self->seek_callback = plm_buffer_seek_file_callback;
+	self->tell_callback = plm_buffer_tell_file_callback;
+	return self;
+}
+
+#endif // PLM_NO_STDIO
+
+plm_buffer_t *plm_buffer_create_with_callbacks(
+	plm_buffer_load_callback load_callback,
+	plm_buffer_seek_callback seek_callback,
+	plm_buffer_tell_callback tell_callback,
+	size_t length,
+	void *user
+) {
+	plm_buffer_t *self = plm_buffer_create_with_capacity(PLM_BUFFER_DEFAULT_SIZE);
+	self->mode = PLM_BUFFER_MODE_FILE;
+	self->total_size = length;
+	self->load_callback = load_callback;
+	self->seek_callback = seek_callback;
+	self->tell_callback = tell_callback;
+	self->load_callback_user_data = user;
 	return self;
 }
 
 plm_buffer_t *plm_buffer_create_with_memory(uint8_t *bytes, uint32_t length, int free_when_done) {
 	plm_buffer_t *self = (plm_buffer_t *)PLM_MALLOC(sizeof(plm_buffer_t));
+	if (!self) {
+	    return NULL;
+    }
 	memset(self, 0, sizeof(plm_buffer_t));
 	self->capacity = length;
 	self->length = length;
@@ -1463,10 +1544,17 @@ plm_buffer_t *plm_buffer_create_with_memory(uint8_t *bytes, uint32_t length, int
 
 plm_buffer_t *plm_buffer_create_with_capacity(uint32_t capacity) {
 	plm_buffer_t *self = (plm_buffer_t *)PLM_MALLOC(sizeof(plm_buffer_t));
+	if (!self) {
+	    return NULL;
+    }
 	memset(self, 0, sizeof(plm_buffer_t));
 	self->capacity = capacity;
 	self->free_when_done = TRUE;
 	self->bytes = (uint8_t *)PLM_MALLOC(capacity);
+	if (!self->bytes) {
+	    PLM_FREE(self);
+	    return NULL;
+	}
 	self->mode = PLM_BUFFER_MODE_RING;
 	self->discard_read_bytes = TRUE;
 	return self;
@@ -1480,9 +1568,11 @@ plm_buffer_t *plm_buffer_create_for_appending(uint32_t initial_capacity) {
 }
 
 void plm_buffer_destroy(plm_buffer_t *self) {
+#ifndef PLM_NO_STDIO
 	if (self->fh && self->close_when_done) {
 		fclose(self->fh);
 	}
+#endif
 	if (self->free_when_done) {
 		PLM_FREE(self->bytes);
 	}
@@ -1521,8 +1611,13 @@ uint32_t plm_buffer_write(plm_buffer_t *self, uint8_t *bytes, uint32_t length) {
 		do {
 			new_size *= 2;
 		} while (new_size - self->length < length);
-		self->bytes = (uint8_t *)PLM_REALLOC(self->bytes, new_size);
-		self->capacity = new_size;
+		uint8_t *new_buffer = (uint8_t *)PLM_REALLOC(self->bytes, new_size);
+		if (new_buffer) {
+			self->bytes = new_buffer;
+			self->capacity = new_size;
+		} else {
+			length = bytes_available;
+		}
 	}
 
 	memcpy(self->bytes + self->length, bytes, length);
@@ -1547,8 +1642,8 @@ void plm_buffer_rewind(plm_buffer_t *self) {
 void plm_buffer_seek(plm_buffer_t *self, size_t pos) {
 	self->has_ended = FALSE;
 
-	if (self->mode == PLM_BUFFER_MODE_FILE) {
-		fseek(self->fh, pos, SEEK_SET);
+	if (self->seek_callback) {
+		self->seek_callback(self, pos, self->load_callback_user_data);
 		self->bit_index = 0;
 		self->length = 0;
 	}
@@ -1567,8 +1662,8 @@ void plm_buffer_seek(plm_buffer_t *self, size_t pos) {
 }
 
 uint32_t plm_buffer_tell(plm_buffer_t *self) {
-	return self->mode == PLM_BUFFER_MODE_FILE
-		? (uint32_t)ftell(self->fh) + (self->bit_index >> 3) - self->length
+	return self->tell_callback
+		? self->tell_callback(self, self->load_callback_user_data) + (self->bit_index >> 3) - self->length
 		: self->bit_index >> 3;
 }
 
@@ -1609,6 +1704,8 @@ void plm_buffer_discard_read_bytes(plm_buffer_t *self) {
 #endif
 }
 
+#ifndef PLM_NO_STDIO
+
 void plm_buffer_load_file_callback(plm_buffer_t *self, void *user) {
 	PLM_UNUSED(user);
 	
@@ -1624,6 +1721,18 @@ void plm_buffer_load_file_callback(plm_buffer_t *self, void *user) {
 		self->has_ended = TRUE;
 	}
 }
+
+void plm_buffer_seek_file_callback(plm_buffer_t *self, size_t offset, void *user) {
+	PLM_UNUSED(user);
+	fseek(self->fh, offset, SEEK_SET);
+}
+
+size_t plm_buffer_tell_file_callback(plm_buffer_t *self, void *user) {
+	PLM_UNUSED(user);
+	return ftell(self->fh);
+}
+
+#endif // PLM_NO_STDIO
 
 int plm_buffer_has_ended(plm_buffer_t *self) {
 	return self->has_ended;
@@ -1804,6 +1913,9 @@ plm_packet_t *plm_demux_get_packet(plm_demux_t *self);
 
 plm_demux_t *plm_demux_create(plm_buffer_t *buffer, int destroy_when_done) {
 	plm_demux_t *self = (plm_demux_t *)PLM_MALLOC(sizeof(plm_demux_t));
+	if (!self) {
+	    return NULL;
+    }
 	memset(self, 0, sizeof(plm_demux_t));
 
 	self->buffer = buffer;
@@ -2844,7 +2956,7 @@ void plm_video_interpolate_macroblock(plm_video_t *self, plm_frame_t *s, int mot
 void plm_video_process_macroblock(plm_video_t *self, uint8_t *s, uint8_t *d, int mh, int mb, int bs, int interp);
 void plm_video_decode_block(plm_video_t *self, int block);
 void plm_video_idct(int32_t *block, int iMaxIndex);
-void plm_make_fast_vlc(plm_video_t *self);
+int plm_make_fast_vlc(plm_video_t *self);
 
 //
 // Create a fast lookup table for the VLC coefficients
@@ -2853,13 +2965,16 @@ void plm_make_fast_vlc(plm_video_t *self);
 //                                                  15              0
 // 8 bits of run, 8 bits of level together (16-bits), another table of 8-bit lengths
 //
-void plm_make_fast_vlc(plm_video_t *self)
+int plm_make_fast_vlc(plm_video_t *self)
 {
     uint16_t *pTables, u16RL, u16Code, u16Mask;
     uint8_t *pLens;
     int i, j, len, count, start;
     
-    self->fast_vlc = pTables = (uint16_t *)malloc(6144);
+    self->fast_vlc = pTables = (uint16_t *)PLM_MALLOC(6144);
+    if (!pTables) {
+        return FALSE;
+    }
     pLens = (uint8_t *)&pTables[2048];
     for (i=0; i<MPEG1_VLC_ELEMENTS; i++) { // for each unique VLC code
         u16Code = mpeg1_vlc_table[i][0]; // bit pattern
@@ -2886,10 +3001,14 @@ void plm_make_fast_vlc(plm_video_t *self)
             }
         }
     }
+    return TRUE;
 } /* plm_make_fast_vlc() */
 
 plm_video_t * plm_video_create_with_buffer(plm_buffer_t *buffer, int destroy_when_done) {
 	plm_video_t *self = (plm_video_t *)PLM_MALLOC(sizeof(plm_video_t));
+	if (!self) {
+	    return NULL;
+	}
 	memset(self, 0, sizeof(plm_video_t));
 	
 	self->buffer = buffer;
@@ -3124,11 +3243,22 @@ int plm_video_decode_sequence_header(plm_video_t *self) {
 	size_t frame_data_size = (luma_plane_size + 2 * chroma_plane_size);
 
     // Split the allocations so that the ESP32 can fit 1 or more in SRAM instead of all in PSRAM
-    plm_video_init_frame(self, &self->frame_current, (uint8_t *)PLM_MALLOC(frame_data_size));
-    plm_video_init_frame(self, &self->frame_forward, (uint8_t *)PLM_MALLOC(frame_data_size));
-    plm_video_init_frame(self, &self->frame_backward, (uint8_t *)PLM_MALLOC(frame_data_size));
+    uint8_t *framebuf_current = (uint8_t *)PLM_MALLOC(frame_data_size);
+    uint8_t *framebuf_forward = (uint8_t *)PLM_MALLOC(frame_data_size);
+    uint8_t *framebuf_backward = (uint8_t *)PLM_MALLOC(frame_data_size);
+    if (!framebuf_current || !framebuf_forward || !framebuf_backward) {
+        free(framebuf_current);
+        free(framebuf_forward);
+        free(framebuf_backward);
+        return FALSE;
+    }
+    plm_video_init_frame(self, &self->frame_current, framebuf_current);
+    plm_video_init_frame(self, &self->frame_forward, framebuf_forward);
+    plm_video_init_frame(self, &self->frame_backward, framebuf_backward);
     // init the fast vlc lookup table
-    plm_make_fast_vlc(self);
+    if (!plm_make_fast_vlc(self)) {
+        return FALSE;
+    }
 
 	self->has_sequence_header = TRUE;
 	return TRUE;
@@ -3208,7 +3338,7 @@ void plm_video_decode_picture(plm_video_t *self) {
 	// Decode all slices
 	while (PLM_START_IS_SLICE(self->start_code)) {
 		plm_video_decode_slice(self, self->start_code & 0x000000FF);
-		if (self->macroblock_address >= self->mb_size - 2) {
+		if (self->macroblock_address >= self->mb_size - 1) {
 			break;
 		}
 		self->start_code = plm_buffer_next_start_code(self->buffer);
@@ -4533,6 +4663,9 @@ void plm_audio_idct36(int s[32][3], int ss, float *d, int dp);
 
 plm_audio_t *plm_audio_create_with_buffer(plm_buffer_t *buffer, int destroy_when_done) {
 	plm_audio_t *self = (plm_audio_t *)PLM_MALLOC(sizeof(plm_audio_t));
+	if (!self) {
+	    return NULL;
+	}
 	memset(self, 0, sizeof(plm_audio_t));
 
 	self->samples.count = PLM_AUDIO_SAMPLES_PER_FRAME;
@@ -4856,19 +4989,19 @@ void plm_audio_decode_frame(plm_audio_t *self) {
 
 					// Output samples
 // multiply by the inverse is much faster on a computer
-#define AUDIO_INVERSE 1.0f / 2147418112.0f
+#define AUDIO_INVERSE 1.0f / -1090519040.0f
 					#ifdef PLM_AUDIO_SEPARATE_CHANNELS
 						float *out_channel = ch == 0
 							? self->samples.left
 							: self->samples.right;
 						for (int j = 0; j < 32; j++) {
                             out_channel[out_pos + j] = self->U[j] * AUDIO_INVERSE;
-//							out_channel[out_pos + j] = self->U[j] / 2147418112.0f;
+//							out_channel[out_pos + j] = self->U[j] / -1090519040.0f;
 						}
 					#else
 						for (int j = 0; j < 32; j++) {
 							self->samples.interleaved[((out_pos + j) << 1) + ch] = 
-                            self->U[j] * AUDIO_INVERSE; // / 2147418112.0f;
+                            self->U[j] * AUDIO_INVERSE; // / -1090519040.0f;
 						}
 					#endif
 				} // End of synthesis channel loop
