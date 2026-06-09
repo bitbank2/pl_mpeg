@@ -10,11 +10,28 @@
 #include "../pl_mpeg.h"
 #include "simpsons.h" // 320x240 MPEG-1 video w/audio of early Simpsons
 BB_SPI_LCD lcd;
+#define CYD
+#ifdef CYD
+// JC4827W543 definitions
+#define LCD DISPLAY_CYD_543
 // I2S connections for the JC4827W543
 #define PIN_STD_BCLK    GPIO_NUM_42     // I2S bit clock io number
+#define PIN_STD_MCLK    I2S_GPIO_UNUSED
 #define PIN_STD_WS      GPIO_NUM_2      // I2S word select io number
 #define PIN_STD_DOUT    GPIO_NUM_41     // I2S data out io number
 #define PIN_STD_DIN     I2S_GPIO_UNUSED     // I2S data in io number
+#define PIN_AMP_POWER   -1
+#else
+// Waveshare AMOLED 1.8 definitions
+#define LCD DISPLAY_WS_AMOLED_18
+// I2S connections
+#define PIN_STD_BCLK    GPIO_NUM_9       // I2S bit clock io number
+#define PIN_STD_MCLK    GPIO_NUM_16      // I2S mclk
+#define PIN_STD_WS      GPIO_NUM_45      // I2S word select io number
+#define PIN_STD_DOUT    GPIO_NUM_10      // I2S data out io number
+#define PIN_STD_DIN     GPIO_NUM_8       // I2S data in io number
+#define PIN_AMP_POWER   46
+#endif
 #include "driver/i2s_std.h" 
 static i2s_chan_handle_t                tx_chan;        // I2S tx channel handler
 int16_t i16Samples[1200];
@@ -36,7 +53,7 @@ void i2sInit(int iSampleRate)
         .clk_cfg  = I2S_STD_CLK_DEFAULT_CONFIG(iSampleRate),
         .slot_cfg = I2S_STD_PHILIPS_SLOT_DEFAULT_CONFIG(I2S_DATA_BIT_WIDTH_16BIT, I2S_SLOT_MODE_MONO),
         .gpio_cfg = {
-            .mclk = I2S_GPIO_UNUSED,    // some codecs may require mclk signal, this example doesn't need it
+            .mclk = PIN_STD_MCLK,    // some codecs may require mclk signal, this example doesn't need it
             .bclk = PIN_STD_BCLK,
             .ws   = PIN_STD_WS,
             .dout = PIN_STD_DOUT,
@@ -62,6 +79,7 @@ void my_video_callback(plm_t *plm, plm_frame_t *frame, void *user) {
     uint16_t *pOut;
     static int iBufferToggle = 0;
 
+    iFrame++;
     pOut = (uint16_t *)lcd.getDMABuffer();
     x = (intptr_t)pOut;
     x = (x + 15) & 0xfffffff0; // make sure it's 16-byte aligned otherwise the SIMD code will misbehave
@@ -84,7 +102,6 @@ void my_video_callback(plm_t *plm, plm_frame_t *frame, void *user) {
       } // for x
       lcd.pushPixels(pOut, iWidth*2, DRAW_TO_LCD | DRAW_WITH_DMA); // send a row at a time to the display
     } // for y
-    iFrame++;
 } /* my_video_callback() */
 
 void i2s_play_float(float *samples, uint16_t len)
@@ -105,7 +122,7 @@ void my_audio_callback(plm_t *plm, plm_samples_t *frame, void *user) {
 void setup()
 {
   Serial.begin(115200);
-  lcd.begin(DISPLAY_CYD_543); // JC4827W543 480x270 QSPI ESP32-S3 "cheap yellow display"
+  lcd.begin(LCD); // JC4827W543 480x270 QSPI ESP32-S3 "cheap yellow display"
   lcd.fillScreen(TFT_BLACK);
   lcd.setTextColor(TFT_GREEN);
   lcd.setFont(FONT_12x16);
@@ -133,6 +150,11 @@ void loop()
    plm_set_audio_decode_callback(plm, my_audio_callback, NULL);
    i2sInit(samplerate);
    i2s_channel_enable(tx_chan); // start the audio channel
+   if (PIN_AMP_POWER != -1) {
+    pinMode(PIN_AMP_POWER, OUTPUT);
+    digitalWrite(PIN_AMP_POWER, 1); // turn on amplifier
+   }
+  //  plm_set_audio_enabled(plm, 0);
    // Play the video
    lStart = millis();
    do {

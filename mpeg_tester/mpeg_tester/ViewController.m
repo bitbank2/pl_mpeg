@@ -285,13 +285,17 @@ void AudioEnginePropertyListenerProc (void *inUserData, AudioQueueRef inAQ, Audi
     frame_time = 1.0 / framerate;
     iSamplesNeeded = iTotalSamples = 0;
     iSamplesPerFrame = (int)((float)samplerate / framerate);
-//    NSLog(
-//            @"Opened %s - framerate: %f, samplerate: %d, duration: %f",
-//            filename,
-//            plm_get_framerate(plm),
-//            plm_get_samplerate(plm),
-//            plm_get_duration(plm)
-//    );
+//    if (bVideo) {
+//        NSLog(
+//              @"Opened %s - framerate: %f, samplerate: %d, duration: %f",
+//              filename,
+//              plm_get_framerate(plm),
+//              plm_get_samplerate(plm),
+//              plm_get_duration(plm)
+//              );
+//    }
+//    plm_seek(plm, 60.0, 0);
+//    plm_seek(plm, 10.0, 0);
     iWidth = plm_get_width(plm);
     iHeight = plm_get_height(plm);
     [[NSOperationQueue mainQueue] addOperationWithBlock:^{
